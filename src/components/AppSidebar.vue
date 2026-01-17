@@ -18,7 +18,7 @@ import {
   Settings,
 } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
-import xrestIcon from './xrestIcon.vue'
+import XRestIcon from './XRestIcon.vue'
 
 const route = useRoute()
 const { state } = useSidebar()
@@ -52,7 +52,7 @@ const navItems = [
     <SidebarHeader class="h-16 flex items-center px-4">
       <div class="flex items-center gap-2 font-bold text-xl overflow-hidden whitespace-nowrap">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-background text-primary shrink-0">
-          <xrestIcon class="h-6 w-6" />
+          <XRestIcon class="h-6 w-6" />
         </div>
         <span v-if="state === 'expanded'" class="truncate">xrest</span>
       </div>
