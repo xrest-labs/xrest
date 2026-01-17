@@ -16,6 +16,10 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             history::init_db(app.handle())?;
+            // Load token cache
+            if let Ok(cache_path) = config::get_token_cache_path(app.handle()) {
+                let _ = token_cache::load_cache_from_file(&cache_path);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

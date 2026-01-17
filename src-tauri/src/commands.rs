@@ -92,8 +92,9 @@ pub fn save_tab_state(app: AppHandle, state: crate::types::TabState) -> Result<(
 }
 
 #[tauri::command]
-pub async fn send_request(_app: AppHandle, tab: RequestTab) -> Result<QResponse, String> {
-    let request_service = RequestService::new(&RealHttpClient);
+pub async fn send_request(app: AppHandle, tab: RequestTab) -> Result<QResponse, String> {
+    let cache_path = crate::config::get_token_cache_path(&app).ok();
+    let request_service = RequestService::new(&RealHttpClient, cache_path);
     let req_method = tab.method.clone();
     let req_url = tab.url.clone();
     let endpoint_id = tab.endpoint_id.clone();
@@ -120,7 +121,7 @@ pub async fn send_request(_app: AppHandle, tab: RequestTab) -> Result<QResponse,
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    let app_handle = _app.clone();
+    let app_handle = app.clone();
     tokio::spawn(async move {
         if let Err(e) = crate::history::save_history(&app_handle, history_entry) {
             eprintln!("Failed to save history: {}", e);

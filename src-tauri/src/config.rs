@@ -85,6 +85,11 @@ pub fn get_tab_state_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
     Ok(path.join("tabstate.yaml"))
 }
 
+pub fn get_token_cache_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let path = app.path().app_cache_dir().map_err(|e| e.to_string())?;
+    Ok(path.join("token_cache.yaml"))
+}
+
 pub fn load_tab_state(
     path: &PathBuf,
     fs: &dyn FileSystem,

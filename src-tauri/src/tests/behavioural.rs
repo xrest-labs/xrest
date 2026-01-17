@@ -61,7 +61,7 @@ async fn test_send_request_with_preflight() {
             })
         });
 
-    let service = RequestService::new(&mock_http);
+    let service = RequestService::new(&mock_http, None);
     let tab = RequestTab {
         id: "tab1".to_string(),
         endpoint_id: Some("endpoint1".to_string()),
@@ -143,7 +143,7 @@ async fn test_variable_resolution() {
             })
         });
 
-    let service = RequestService::new(&mock_http);
+    let service = RequestService::new(&mock_http, None);
     let mut variables = HashMap::new();
     variables.insert(
         "BASE_URL".to_string(),
@@ -219,7 +219,7 @@ async fn test_http_error_handling() {
         .expect_send_request()
         .returning(|_, _, _, _, _| Box::pin(async { Err("Network unreachable".to_string()) }));
 
-    let service = RequestService::new(&mock_http);
+    let service = RequestService::new(&mock_http, None);
     let tab = create_mock_tab("GET", "https://api.example.com", None);
 
     let result = service.send_request(tab).await;
@@ -257,7 +257,7 @@ async fn test_status_codes_and_headers() {
             })
         });
 
-    let service = RequestService::new(&mock_http);
+    let service = RequestService::new(&mock_http, None);
     let tab = create_mock_tab("GET", "https://api.example.com/not-found", None);
 
     let result = service.send_request(tab).await;
