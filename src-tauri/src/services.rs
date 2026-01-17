@@ -1,0 +1,306 @@
+use crate::io::{FileSystem, HttpClient};
+use crate::types::{PreflightConfig, QResponse, RequestTab, Service, TabState, UserSettings};
+use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Runtime};
+
+pub struct ConfigService<'a> {
+    pub fs: &'a dyn FileSystem,
+}
+
+impl<'a> ConfigService<'a> {
+    pub fn new(fs: &'a dyn FileSystem) -> Self {
+        Self { fs }
+    }
+
+    pub fn load_settings<R: Runtime>(&self, app: &AppHandle<R>) -> Result<UserSettings, String> {
+        let path = crate::config::get_settings_path(app)?;
+        crate::config::load_settings(&path, self.fs)
+    }
+
+    pub fn save_settings<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        settings: &UserSettings,
+    ) -> Result<(), String> {
+        let path = crate::config::get_settings_path(app)?;
+        crate::config::save_settings(&path, settings, self.fs)
+    }
+
+    pub fn load_service(&self, directory: &str) -> Result<Service, String> {
+        crate::config::load_service(directory, self.fs)
+    }
+
+    pub fn save_service(&self, service: &mut Service) -> Result<(), String> {
+        crate::config::save_service(service, self.fs)
+    }
+
+    pub fn load_collections<R: Runtime>(&self, app: &AppHandle<R>) -> Result<Vec<Service>, String> {
+        let path = crate::config::get_collections_path(app)?;
+        crate::config::load_collections(&path, self.fs)
+    }
+
+    pub fn save_collections<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        collections: &Vec<Service>,
+    ) -> Result<(), String> {
+        let path = crate::config::get_collections_path(app)?;
+        crate::config::save_collections(&path, collections, self.fs)
+    }
+
+    pub fn load_tab_state<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+    ) -> Result<Option<TabState>, String> {
+        let path = crate::config::get_tab_state_path(app)?;
+        crate::config::load_tab_state(&path, self.fs)
+    }
+
+    pub fn save_tab_state<R: Runtime>(
+        &self,
+        app: &AppHandle<R>,
+        state: &TabState,
+    ) -> Result<(), String> {
+        let path = crate::config::get_tab_state_path(app)?;
+        crate::config::save_tab_state(&path, state, self.fs)
+    }
+}
+
+pub struct RequestService<'a> {
+    pub http: &'a dyn HttpClient,
+}
+
+impl<'a> RequestService<'a> {
+    pub fn new(http: &'a dyn HttpClient) -> Self {
+        Self { http }
+    }
+
+    pub async fn send_request(&self, mut tab: RequestTab) -> Result<QResponse, String> {
+        // Resolve variables in URL, body, and headers
+        let default_vars = HashMap::new();
+        let vars = tab.variables.as_ref().unwrap_or(&default_vars);
+        tab.url = self.resolve_variables(&tab.url, vars);
+        tab.body.content = self.resolve_variables(&tab.body.content, vars);
+
+        for header in &mut tab.headers {
+            header.name = self.resolve_variables(&header.name, vars);
+            header.value = self.resolve_variables(&header.value, vars);
+        }
+
+        // Handle preflight if needed
+        if tab.preflight.enabled && !tab.preflight.url.is_empty() {
+            let service_id_str = tab.service_id.as_deref().unwrap_or("");
+            let token = self
+                .execute_preflight(service_id_str, &tab.preflight, vars)
+                .await?;
+
+            let token_header = tab
+                .preflight
+                .token_header
+                .as_ref()
+                .filter(|h| !h.is_empty())
+                .cloned()
+                .unwrap_or_else(|| "Authorization".to_string());
+            if token_header.to_lowercase() == "authorization" {
+                tab.auth.bearer_token = token;
+                tab.auth.r#type = "bearer".to_string();
+            } else {
+                tab.headers.push(crate::types::Header {
+                    name: token_header,
+                    value: token,
+                });
+                tab.auth.r#type = "none".to_string();
+            }
+        }
+
+        let mut headers = Vec::new();
+        for h in &tab.headers {
+            headers.push((h.name.clone(), h.value.clone()));
+        }
+
+        // Add auth headers
+        match tab.auth.r#type.as_str() {
+            "bearer" => {
+                if !tab.auth.bearer_token.is_empty() {
+                    headers.push((
+                        "Authorization".to_string(),
+                        format!("Bearer {}", tab.auth.bearer_token),
+                    ));
+                }
+            }
+            "basic" => {
+                if !tab.auth.basic_user.is_empty() {
+                    let auth = format!("{}:{}", tab.auth.basic_user, tab.auth.basic_pass);
+                    use base64::{engine::general_purpose, Engine as _};
+                    let encoded = general_purpose::STANDARD.encode(auth);
+                    headers.push(("Authorization".to_string(), format!("Basic {}", encoded)));
+                }
+            }
+            "apikey" => {
+                if !tab.auth.api_key_name.is_empty() {
+                    if tab.auth.api_key_location == "header" {
+                        headers.push((
+                            tab.auth.api_key_name.clone(),
+                            tab.auth.api_key_value.clone(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let mut query = Vec::new();
+        for p in &tab.params {
+            query.push((p.name.clone(), p.value.clone()));
+        }
+
+        // Add apikey to query if location is query
+        if tab.auth.r#type == "apikey"
+            && tab.auth.api_key_location == "query"
+            && !tab.auth.api_key_name.is_empty()
+        {
+            query.push((
+                tab.auth.api_key_name.clone(),
+                tab.auth.api_key_value.clone(),
+            ));
+        }
+
+        if !tab.body.content.is_empty()
+            && tab.method.to_uppercase() != "GET"
+            && tab.method.to_uppercase() != "HEAD"
+        {
+            headers.push(("Content-Type".to_string(), tab.body.r#type.clone()));
+        }
+
+        self.http
+            .send_request(
+                &tab.method,
+                &tab.url,
+                headers,
+                if tab.body.content.is_empty() {
+                    None
+                } else {
+                    Some(tab.body.content.clone())
+                },
+                query,
+            )
+            .await
+    }
+
+    async fn execute_preflight(
+        &self,
+        service_id: &str,
+        config: &PreflightConfig,
+        variables: &HashMap<String, String>,
+    ) -> Result<String, String> {
+        // Check cache
+        if config.cache_token {
+            if let Some(cached) = crate::token_cache::get_cached_token(service_id) {
+                if crate::token_cache::is_token_valid(&cached) {
+                    return Ok(cached.token);
+                }
+            }
+        }
+
+        let resolved_url = self.resolve_variables(&config.url, variables);
+        let resolved_body = self.resolve_variables(&config.body, variables);
+        let mut headers = Vec::new();
+        for h in &config.headers {
+            headers.push((
+                self.resolve_variables(&h.name, variables),
+                self.resolve_variables(&h.value, variables),
+            ));
+        }
+
+        if !resolved_body.is_empty()
+            && config.method.to_uppercase() != "GET"
+            && config.method.to_uppercase() != "HEAD"
+        {
+            headers.push(("Content-Type".to_string(), "application/json".to_string()));
+        }
+
+        let response = self
+            .http
+            .send_request(
+                &config.method,
+                &resolved_url,
+                headers,
+                if resolved_body.is_empty() {
+                    None
+                } else {
+                    Some(resolved_body)
+                },
+                vec![],
+            )
+            .await?;
+
+        let response_json: serde_json::Value = serde_json::from_str(&response.body)
+            .map_err(|e| format!("Preflight response is not valid JSON: {}", e))?;
+
+        let token = response_json
+            .get(&config.token_key)
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "Token key '{}' not found in preflight response",
+                    config.token_key
+                )
+            })?
+            .to_string();
+
+        if config.cache_token {
+            let expires_in_seconds = if config.cache_duration == "derived" {
+                let duration_value = response_json
+                    .get(&config.cache_duration_key)
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| {
+                        format!("Duration key '{}' not found", config.cache_duration_key)
+                    })?;
+
+                match config.cache_duration_unit.as_str() {
+                    "seconds" => duration_value,
+                    "minutes" => duration_value * 60,
+                    "hours" => duration_value * 3600,
+                    "days" => duration_value * 86400,
+                    _ => duration_value,
+                }
+            } else {
+                config.cache_duration.parse::<u64>().unwrap_or(3600)
+            };
+
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            crate::token_cache::set_cached_token(
+                service_id.to_string(),
+                token.clone(),
+                now + expires_in_seconds,
+            );
+        }
+
+        Ok(token)
+    }
+
+    fn resolve_variables(&self, text: &str, variables: &HashMap<String, String>) -> String {
+        let re = regex::Regex::new(r"\{\{([^}]+)\}\}").expect("Invalid regex");
+        let mut result = text.to_string();
+        loop {
+            let before = result.clone();
+            result = re
+                .replace_all(&result, |caps: &regex::Captures| {
+                    let var_name = caps[1].trim();
+                    variables
+                        .get(var_name)
+                        .cloned()
+                        .unwrap_or_else(|| caps[0].to_string())
+                })
+                .to_string();
+            if result == before {
+                break;
+            }
+        }
+        result
+    }
+}

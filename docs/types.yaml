@@ -1,0 +1,401 @@
+# xrest Type Specification
+# This file documents the data structures used in the xrest backend (Rust)
+# and their serialized representations (YAML/JSON).
+
+types:
+  AuthType:
+    type: enum
+    serialization: lowercase
+    variants:
+      - bearer
+      - apikey
+      - basic
+      - none
+    description: "Supported authentication methods."
+
+  NameValue:
+    type: struct
+    serialization: camelCase
+    fields:
+      name:
+        type: String
+        description: "The name/key of the item."
+      value:
+        type: String
+        description: "The value of the item."
+    description: "A generic key-value pair. Used for Variables, Params, and Headers."
+
+  EndpointMetadata:
+    type: struct
+    serialization: camelCase
+    fields:
+      version:
+        type: String
+        description: "The version string of the endpoint configuration."
+      lastUpdated:
+        type: u64
+        description: "Unix timestamp (ms) of the last update."
+
+  EnvironmentConfig:
+    type: struct
+    serialization: camelCase
+    fields:
+      name:
+        type: String
+        description: "Name of the environment (e.g., DEV, PROD)."
+      isUnsafe:
+        type: boolean
+        default: false
+        description: "Flag indicating if the environment is a production or unsafe environment."
+      variables:
+        type: Array<NameValue>
+        description: "List of variables defined for this environment."
+
+  PreflightConfig:
+    type: struct
+    serialization: camelCase
+    fields:
+      enabled:
+        type: boolean
+        description: "Whether pre-flight authentication is enabled."
+      method:
+        type: String
+        description: "HTTP method for the pre-flight request."
+      url:
+        type: String
+        description: "URL for the pre-flight request."
+      body:
+        type: String
+        description: "Request body for the pre-flight request."
+      headers:
+        type: Array<NameValue>
+        description: "Headers for the pre-flight request."
+      cacheToken:
+        type: boolean
+        description: "Whether to cache the token obtained from pre-flight."
+      cacheDuration:
+        type: String
+        description: "How to determine cache duration (e.g., 'derived')."
+      cacheDurationKey:
+        type: String
+        description: "The key in the response body that specifies the duration."
+      cacheDurationUnit:
+        type: String
+        description: "Unit for cache duration (seconds, minutes, etc.)."
+      tokenKey:
+        type: String
+        description: "The key in the response body to extract the token from."
+      tokenHeader:
+        type: Option<String>
+        description: "The header name where the token should be sent in the actual request."
+
+  RequestConfig:
+    type: struct
+    serialization: camelCase
+    fields:
+      method:
+        type: String
+      url:
+        type: String
+      authenticated:
+        type: boolean
+      authType:
+        type: String
+      params:
+        type: Array<NameValue>
+      headers:
+        type: Array<NameValue>
+      body:
+        type: String
+      preflight:
+        type: PreflightConfig
+
+  EndpointVersion:
+    type: struct
+    serialization: camelCase
+    fields:
+      version:
+        type: i32
+      config:
+        type: RequestConfig
+      lastUpdated:
+        type: u64
+
+  Endpoint:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      serviceId:
+        type: String
+      name:
+        type: String
+      method:
+        type: String
+      url:
+        type: String
+      authenticated:
+        type: boolean
+      authType:
+        type: String
+      metadata:
+        type: EndpointMetadata
+      params:
+        type: Array<NameValue>
+      headers:
+        type: Array<NameValue>
+      body:
+        type: String
+      preflight:
+        type: PreflightConfig
+      lastVersion:
+        type: i32
+        default: 0
+      versions:
+        type: Array<EndpointVersion>
+        default: []
+
+  EndpointStub:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      name:
+        type: String
+      url:
+        type: String
+
+  Service:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      name:
+        type: String
+      environments:
+        type: Array<EnvironmentConfig>
+      isAuthenticated:
+        type: boolean
+      authType:
+        type: Option<AuthType>
+      endpoints:
+        type: Array<Endpoint>
+      directory:
+        type: String
+      selectedEnvironment:
+        type: Option<String>
+      gitUrl:
+        type: Option<String>
+
+  ServiceFile:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      name:
+        type: String
+      isAuthenticated:
+        type: boolean
+      authType:
+        type: Option<AuthType>
+      endpoints:
+        type: Array<EndpointStub>
+      directory:
+        type: String
+      selectedEnvironment:
+        type: Option<String>
+      gitUrl:
+        type: Option<String>
+
+  GitStatus:
+    type: struct
+    serialization: camelCase
+    fields:
+      isGit:
+        type: boolean
+      remoteUrl:
+        type: Option<String>
+      branch:
+        type: Option<String>
+      hasUncommittedChanges:
+        type: boolean
+      hasUnpushedCommits:
+        type: boolean
+      lastSync:
+        type: Option<u64>
+
+  QResponse:
+    type: struct
+    serialization: camelCase
+    fields:
+      status:
+        type: u16
+      statusText:
+        type: String
+      headers:
+        type: Array<NameValue>
+      body:
+        type: String
+      error:
+        type: Option<String>
+      timeElapsed:
+        type: u64
+      size:
+        type: u64
+
+  BodyConfig:
+    type: struct
+    serialization: camelCase
+    fields:
+      type:
+        type: String
+      content:
+        type: String
+
+  AuthConfig:
+    type: struct
+    serialization: camelCase
+    fields:
+      type:
+        type: String
+      bearerToken:
+        type: String
+      basicUser:
+        type: String
+      basicPass:
+        type: String
+      apiKeyName:
+        type: String
+      apiKeyValue:
+        type: String
+      apiKeyLocation:
+        type: String
+
+  RequestTab:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      endpointId:
+        type: Option<String>
+      title:
+        type: String
+      method:
+        type: String
+      url:
+        type: String
+      params:
+        type: Array<NameValue>
+      headers:
+        type: Array<NameValue>
+      body:
+        type: BodyConfig
+      auth:
+        type: AuthConfig
+      activeSubTab:
+        type: Option<String>
+        default: null
+      serviceId:
+        type: Option<String>
+        default: null
+      preflight:
+        type: PreflightConfig
+      variables:
+        type: Option<Map<String, String>>
+        default: null
+      isEdited:
+        type: boolean
+        default: false
+
+  SettingsTab:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      title:
+        type: String
+      serviceId:
+        type: String
+      serviceData:
+        type: Service
+      isEdited:
+        type: boolean
+        default: false
+
+  Tab:
+    type: enum
+    serialization: lowercase (with tag "type")
+    variants:
+      request:
+        type: RequestTab
+      settings:
+        type: SettingsTab
+
+  TabState:
+    type: struct
+    serialization: camelCase
+    fields:
+      activeTabId:
+        type: String
+      tabs:
+        type: Array<Tab>
+
+  ServiceStub:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      name:
+        type: String
+      directory:
+        type: String
+
+  UserSettings:
+    type: struct
+    serialization: camelCase
+    fields:
+      theme:
+        type: String
+        description: "'light', 'dark', or 'system'"
+      services:
+        type: Array<ServiceStub>
+
+  HistoryEntry:
+    type: struct
+    serialization: camelCase
+    fields:
+      id:
+        type: String
+      serviceId:
+        type: Option<String>
+      endpointId:
+        type: Option<String>
+      method:
+        type: String
+      url:
+        type: String
+      requestHeaders:
+        type: Array<NameValue>
+      requestBody:
+        type: String
+      responseStatus:
+        type: u16
+      responseStatusText:
+        type: String
+      responseHeaders:
+        type: Array<NameValue>
+      responseBody:
+        type: String
+      timeElapsed:
+        type: u64
+      size:
+        type: u64
+      createdAt:
+        type: String
