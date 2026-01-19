@@ -90,7 +90,7 @@ export const useEnvironmentVariables = () => {
 
     if (tab.params) {
       tab.params.forEach((p: any) => {
-        if (p.enabled && p.name) {
+        if (p.name) {
           // Resolve parameter value using environment variables for chaining
           paramVars[p.name] = resolveVariables(p.value, envVars)
         }

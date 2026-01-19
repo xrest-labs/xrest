@@ -281,8 +281,8 @@ const handleSaveRequest = async (tab: any) => {
     ...endpoint,
     method: tab.method,
     url: tab.url,
-    params: tab.params.filter((p: any) => p.name).map((p: any) => ({ name: p.name, value: p.value })),
-    headers: tab.headers.filter((h: any) => h.name).map((h: any) => ({ name: h.name, value: h.value })),
+    params: tab.params.filter((p: any) => p.name).map((p: any) => ({ name: p.name, value: p.value, enabled: p.enabled ?? true })),
+    headers: tab.headers.filter((h: any) => h.name).map((h: any) => ({ name: h.name, value: h.value, enabled: h.enabled ?? true })),
     body: tab.body.content,
     preflight: preflight,
     metadata: {
