@@ -33,8 +33,6 @@ const toggleService = (index: number) => {
   localServices.value[index].isOpen = !localServices.value[index].isOpen
 }
 
-const shouldShowEnvironments = computed(() => props.showEnvironments !== false)
-
 const getEnvironments = (service: Service) => {
   if (!service.environments || service.environments.length === 0) return ['DEFAULT']
   return service.environments.map(e => e.name)
@@ -72,7 +70,7 @@ const isEnvUnsafe = (service: Service, envName: string) => {
           <span class="text-xs font-semibold truncate">{{ service.name }}</span>
         </div>
 
-        <Popover v-if="shouldShowEnvironments">
+        <Popover>
           <PopoverTrigger as-child>
             <button v-if="service.environments && service.environments.length > 0" :class="[
               'h-6 flex items-center gap-1.5 px-2 text-[10px] font-bold rounded border transition-all outline-none',
@@ -81,7 +79,7 @@ const isEnvUnsafe = (service: Service, envName: string) => {
                 : 'text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/5 border-transparent hover:border-primary/20'
             ]">
               <span class="truncate max-w-[50px]">{{ service.selectedEnvironment || service.environments[0].name
-              }}</span>
+                }}</span>
               <ChevronDownIcon class="h-3 w-3 opacity-50" />
             </button>
           </PopoverTrigger>
