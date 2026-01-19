@@ -1,6 +1,6 @@
 use crate::config::{load_service, save_service};
 use crate::io::MockFileSystem;
-use crate::types::{AuthType, Endpoint, EndpointMetadata, PreflightConfig, Service, ServiceFile};
+use crate::types::{AuthType, Endpoint, EndpointMetadata, PreflightConfig, Service};
 use mockall::predicate::*;
 use std::path::PathBuf;
 

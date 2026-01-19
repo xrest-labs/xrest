@@ -4,3 +4,5 @@ pub mod commands;
 pub mod config;
 #[cfg(test)]
 pub mod history;
+#[cfg(test)]
+pub mod services;
