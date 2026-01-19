@@ -69,11 +69,12 @@ impl<'a> ConfigService<'a> {
 
 pub struct RequestService<'a> {
     pub http: &'a dyn HttpClient,
+    pub cache_path: Option<std::path::PathBuf>,
 }
 
 impl<'a> RequestService<'a> {
-    pub fn new(http: &'a dyn HttpClient) -> Self {
-        Self { http }
+    pub fn new(http: &'a dyn HttpClient, cache_path: Option<std::path::PathBuf>) -> Self {
+        Self { http, cache_path }
     }
 
     pub async fn send_request(&self, mut tab: RequestTab) -> Result<QResponse, String> {
@@ -89,12 +90,24 @@ impl<'a> RequestService<'a> {
         }
 
         // Handle preflight if needed
-        if tab.preflight.enabled && !tab.preflight.url.is_empty() {
-            let service_id_str = tab.service_id.as_deref().unwrap_or("");
-            let token = self
-                .execute_preflight(service_id_str, &tab.preflight, vars)
-                .await?;
+        let mut token = None;
+        let service_id_str = tab.service_id.as_deref().unwrap_or("");
 
+        if tab.preflight.enabled && !tab.preflight.url.is_empty() {
+            token = Some(
+                self.execute_preflight(service_id_str, &tab.preflight, vars)
+                    .await?,
+            );
+        } else if !service_id_str.is_empty() {
+            // Even if preflight is disabled for this tab, check if we have a cached token for this service
+            if let Some(cached) = crate::token_cache::get_cached_token(service_id_str) {
+                if crate::token_cache::is_token_valid(&cached) {
+                    token = Some(cached.token);
+                }
+            }
+        }
+
+        if let Some(token_val) = token {
             let token_header = tab
                 .preflight
                 .token_header
@@ -103,12 +116,12 @@ impl<'a> RequestService<'a> {
                 .cloned()
                 .unwrap_or_else(|| "Authorization".to_string());
             if token_header.to_lowercase() == "authorization" {
-                tab.auth.bearer_token = token;
+                tab.auth.bearer_token = token_val;
                 tab.auth.r#type = "bearer".to_string();
             } else {
                 tab.headers.push(crate::types::Header {
                     name: token_header,
-                    value: token,
+                    value: token_val,
                 });
                 tab.auth.r#type = "none".to_string();
             }
@@ -194,30 +207,38 @@ impl<'a> RequestService<'a> {
         config: &PreflightConfig,
         variables: &HashMap<String, String>,
     ) -> Result<String, String> {
+        let resolved_url = self.resolve_variables(&config.url, variables);
+        let resolved_body = self.resolve_variables(&config.body, variables);
+        let mut resolved_headers = Vec::new();
+        for h in &config.headers {
+            resolved_headers.push((
+                self.resolve_variables(&h.name, variables),
+                self.resolve_variables(&h.value, variables),
+            ));
+        }
+
+        let cache_key = crate::token_cache::generate_key(
+            service_id,
+            &resolved_url,
+            &config.method,
+            &resolved_body,
+            &resolved_headers,
+        );
+
         // Check cache
         if config.cache_token {
-            if let Some(cached) = crate::token_cache::get_cached_token(service_id) {
+            if let Some(cached) = crate::token_cache::get_cached_token(&cache_key) {
                 if crate::token_cache::is_token_valid(&cached) {
                     return Ok(cached.token);
                 }
             }
         }
 
-        let resolved_url = self.resolve_variables(&config.url, variables);
-        let resolved_body = self.resolve_variables(&config.body, variables);
-        let mut headers = Vec::new();
-        for h in &config.headers {
-            headers.push((
-                self.resolve_variables(&h.name, variables),
-                self.resolve_variables(&h.value, variables),
-            ));
-        }
-
         if !resolved_body.is_empty()
             && config.method.to_uppercase() != "GET"
             && config.method.to_uppercase() != "HEAD"
         {
-            headers.push(("Content-Type".to_string(), "application/json".to_string()));
+            resolved_headers.push(("Content-Type".to_string(), "application/json".to_string()));
         }
 
         let response = self
@@ -225,7 +246,7 @@ impl<'a> RequestService<'a> {
             .send_request(
                 &config.method,
                 &resolved_url,
-                headers,
+                resolved_headers,
                 if resolved_body.is_empty() {
                     None
                 } else {
@@ -274,10 +295,15 @@ impl<'a> RequestService<'a> {
                 .unwrap_or_default()
                 .as_secs();
             crate::token_cache::set_cached_token(
-                service_id.to_string(),
+                cache_key,
                 token.clone(),
                 now + expires_in_seconds,
             );
+
+            // Save the cache to disk if a path is provided
+            if let Some(path) = &self.cache_path {
+                let _ = crate::token_cache::save_cache_to_file(path);
+            }
         }
 
         Ok(token)

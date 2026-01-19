@@ -8,7 +8,10 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest"
+    "test": "vitest",
+    "test:tauri": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:tauri:unit": "cargo test --manifest-path src-tauri/Cargo.toml --lib tests::unit",
+    "test:tauri:behavioral": "cargo test --manifest-path src-tauri/Cargo.toml --lib tests::behavioural"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
