@@ -156,7 +156,8 @@ const emit = defineEmits<{
                     <span class="font-bold text-xs">{{ env.name }}</span>
                   </div>
                   <div class="flex items-center gap-1.5 mt-1">
-                    <Switch v-model:checked="env.isUnsafe" class="scale-50" />
+                    <Switch v-model="env.isUnsafe" class="scale-50" checked v-if="env.isUnsafe" />
+                    <Switch v-model="env.isUnsafe" class="scale-50" v-else />
                     <span class="text-[9px] uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Prod
                       Warn</span>
                   </div>
