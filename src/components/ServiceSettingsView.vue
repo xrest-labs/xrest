@@ -25,7 +25,11 @@ const props = defineProps<{
 onBeforeMount(async () => {
   console.log("Before mounting");
   console.log(props.tab.serviceId);
-  await invoke('load_environments_by_service', { serviceId: props.tab.serviceId });
+  const result: any = await invoke('load_environments_by_service', { serviceId: props.tab.serviceId });
+  if (result && result.environments) {
+    console.log(result.environments);
+    tab.value.serviceData.environments = result.environments;
+  }
 });
 
 const tab = computed(() => props.tab);
@@ -165,9 +169,10 @@ const emit = defineEmits<{
                     <span class="font-bold text-xs">{{ env.name }}</span>
                   </div>
                   <div class="flex items-center gap-1.5 mt-1">
-                    <Switch v-model:checked="env.isUnsafe" class="scale-50" />
+                    <Switch :id="env.name" v-model="env.isUnsafe" v-if="env.isUnsafe" class="scale-50" checked />
+                    <Switch :id="env.name" v-model="env.isUnsafe" v-else class="scale-50" />
                     <span class="text-[9px] uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Prod
-                      Warn</span>
+                      Warn {{ env.isUnsafe }}</span>
                   </div>
                 </div>
               </TableHead>

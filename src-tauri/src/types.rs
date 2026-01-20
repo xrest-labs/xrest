@@ -9,16 +9,9 @@ pub enum AuthType {
     None,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct NameValue {
-    pub name: String,
-    pub value: String,
-}
-
-pub type Variable = NameValue;
-pub type Param = NameValue;
-pub type Header = NameValue;
+pub use crate::domain::environment::{NameValue, Variable};
+pub type Param = Variable;
+pub type Header = Variable;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -27,14 +20,7 @@ pub struct EndpointMetadata {
     pub last_updated: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct EnvironmentConfig {
-    pub name: String,
-    #[serde(default)]
-    pub is_unsafe: bool,
-    pub variables: Vec<Variable>,
-}
+pub use crate::domain::environment::Environment as EnvironmentConfig;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
