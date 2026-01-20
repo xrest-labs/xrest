@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import InterpolatedInput from './InterpolatedInput.vue'
 import InterpolatedTextarea from './InterpolatedTextarea.vue'
+import RequestParameters from './RequestParameters.vue'
 import { computed } from 'vue'
 
 const props = defineProps<{
@@ -130,11 +131,29 @@ const environmentName = computed(() => props.environmentName);
           </div>
 
           <div v-if="preflight.method !== 'GET'" class="space-y-2">
-            <Label class="text-[9px] text-muted-foreground">Request Body</Label>
-            <InterpolatedTextarea v-model="preflight.body" :variables="variables" :environment-name="environmentName"
-              language="json"
-              class="w-full h-24 bg-background border rounded p-2 text-[9px] font-mono resize-none focus:ring-1 focus:ring-primary"
-              placeholder='{ "grant_type": "password", ... }' />
+            <div class="flex items-center justify-between">
+              <Label class="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">Request Body</Label>
+              <Select v-model="preflight.bodyType">
+                <SelectTrigger
+                  class="h-6 w-32 text-[8px] font-medium bg-background border-none shadow-none focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="application/json" class="text-[8px]">JSON</SelectItem>
+                  <SelectItem value="application/x-www-form-urlencoded" class="text-[8px]">URL Encoded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div v-show="preflight.bodyType === 'application/json'">
+              <InterpolatedTextarea v-model="preflight.body" :variables="variables" :environment-name="environmentName"
+                language="json"
+                class="w-full h-24 bg-background border rounded p-2 text-[9px] font-mono resize-none focus:ring-1 focus:ring-primary"
+                placeholder='{ "grant_type": "password", ... }' />
+            </div>
+            <div v-show="preflight.bodyType === 'application/x-www-form-urlencoded'">
+              <RequestParameters :items="preflight.bodyParams" :variables="variables"
+                :environment-name="environmentName" />
+            </div>
           </div>
         </div>
 

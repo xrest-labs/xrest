@@ -43,6 +43,10 @@ pub struct PreflightConfig {
     pub method: String,
     pub url: String,
     pub body: String,
+    #[serde(default = "default_body_type")]
+    pub body_type: String,
+    #[serde(default)]
+    pub body_params: Vec<Param>,
     pub headers: Vec<Header>,
     pub cache_token: bool,
     pub cache_duration: String,
@@ -51,6 +55,10 @@ pub struct PreflightConfig {
     pub token_key: String,
     #[serde(default)]
     pub token_header: Option<String>,
+}
+
+fn default_body_type() -> String {
+    "application/json".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -295,6 +303,8 @@ mod tests {
                 method: "GET".to_string(),
                 url: "/preflight".to_string(),
                 body: "".to_string(),
+                body_type: "application/json".to_string(),
+                body_params: vec![],
                 headers: vec![],
                 cache_token: true,
                 cache_duration: "derived".to_string(),

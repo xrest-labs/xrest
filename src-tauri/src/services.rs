@@ -208,7 +208,26 @@ impl<'a> RequestService<'a> {
         variables: &HashMap<String, String>,
     ) -> Result<String, String> {
         let resolved_url = self.resolve_variables(&config.url, variables);
-        let resolved_body = self.resolve_variables(&config.body, variables);
+        let mut resolved_body = self.resolve_variables(&config.body, variables);
+
+        if config.body_type == "application/x-www-form-urlencoded" && !config.body_params.is_empty()
+        {
+            let mut params = Vec::new();
+            for p in &config.body_params {
+                let name = self.resolve_variables(&p.name, variables);
+                let value = self.resolve_variables(&p.value, variables);
+                if !name.is_empty() {
+                    params.push(format!(
+                        "{}={}",
+                        urlencoding::encode(&name),
+                        urlencoding::encode(&value)
+                    ));
+                }
+            }
+            if !params.is_empty() {
+                resolved_body = params.join("&");
+            }
+        }
         let mut resolved_headers = Vec::new();
         for h in &config.headers {
             resolved_headers.push((
@@ -238,7 +257,7 @@ impl<'a> RequestService<'a> {
             && config.method.to_uppercase() != "GET"
             && config.method.to_uppercase() != "HEAD"
         {
-            resolved_headers.push(("Content-Type".to_string(), "application/json".to_string()));
+            resolved_headers.push(("Content-Type".to_string(), config.body_type.clone()));
         }
 
         let response = self

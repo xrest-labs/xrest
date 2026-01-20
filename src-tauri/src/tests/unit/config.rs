@@ -132,6 +132,8 @@ fn test_save_service_versioning() {
                 method: "GET".to_string(),
                 url: "".to_string(),
                 body: "".to_string(),
+                body_type: "application/json".to_string(),
+                body_params: vec![],
                 headers: vec![],
                 cache_token: true,
                 cache_duration: "3600".to_string(),

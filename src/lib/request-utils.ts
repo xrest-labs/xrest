@@ -55,6 +55,8 @@ export const defaultTabState = () => ({
     method: 'POST',
     url: '',
     body: '',
+    bodyType: 'application/json',
+    bodyParams: [{ enabled: true, name: '', value: '' }],
     headers: [],
     cacheToken: true,
     cacheDuration: 'derived',
