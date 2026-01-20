@@ -25,6 +25,7 @@ const gitStatus = computed(() => props.gitStatus);
 const emit = defineEmits<{
   (e: 'save', tab: any): void
   (e: 'delete', serviceId: string, tabId: string): void
+  (e: 'reload', serviceId: string): void
   (e: 'syncGit', serviceId: string, directory: string): void
   (e: 'initGit', serviceId: string, directory: string, gitUrl?: string): void
 }>()
@@ -42,6 +43,10 @@ const emit = defineEmits<{
           'project integration' : 'settings' }} for {{ tab.serviceData.name }}.</p>
       </div>
       <div class="flex items-center gap-2">
+        <Button v-if="tab.serviceData.directory" variant="outline" size="sm" class="h-8 gap-2"
+          @click="emit('reload', tab.serviceId)">
+          <RefreshCw class="h-3.5 w-3.5" /> Reload
+        </Button>
         <Button variant="destructive" size="sm" class="h-8 gap-2" @click="emit('delete', tab.serviceId, tab.id)">
           <Trash2 class="h-3.5 w-3.5" /> {{ tab.serviceData.directory ? 'Delete Service' : 'Delete Collection' }}
         </Button>
@@ -151,7 +156,7 @@ const emit = defineEmits<{
                     <span class="font-bold text-xs">{{ env.name }}</span>
                   </div>
                   <div class="flex items-center gap-1.5 mt-1">
-                    <Switch :checked="env.isUnsafe" @update:checked="env.isUnsafe = $event" class="scale-50" />
+                    <Switch v-model:checked="env.isUnsafe" class="scale-50" />
                     <span class="text-[9px] uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Prod
                       Warn</span>
                   </div>
