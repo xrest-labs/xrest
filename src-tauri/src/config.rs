@@ -12,22 +12,7 @@ pub fn get_settings_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Stri
 }
 
 pub fn load_settings(path: &PathBuf, fs: &dyn FileSystem) -> Result<UserSettings, String> {
-    if !fs.exists(path) {
-        let settings = UserSettings::default();
-        save_settings(path, &settings, fs)?;
-        return Ok(settings);
-    }
-    let content = fs.read_to_string(path).map_err(|e| e.to_string())?;
-    match serde_yaml::from_str::<UserSettings>(&content) {
-        Ok(settings) => Ok(settings),
-        Err(e) => {
-            println!(
-                "Failed to parse settings.yaml: {}. Falling back to default.",
-                e
-            );
-            Ok(UserSettings::default())
-        }
-    }
+    UserSettings::load(path, fs)
 }
 
 pub fn save_settings(
@@ -35,14 +20,7 @@ pub fn save_settings(
     settings: &UserSettings,
     fs: &dyn FileSystem,
 ) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        if !fs.exists(parent) {
-            fs.create_dir_all(parent)?;
-        }
-    }
-    let content = serde_yaml::to_string(settings).map_err(|e| e.to_string())?;
-    fs.write(path, &content)?;
-    Ok(())
+    settings.save(path, fs)
 }
 
 // Collections (collections.yaml)

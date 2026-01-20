@@ -12,12 +12,21 @@ import {
   removeVariable,
   addVariableToAll
 } from '@/lib/environment-utils'
-import { computed } from 'vue'
+import { computed } from 'vue';
+
+import { onBeforeMount } from 'vue';
+import { invoke } from '@tauri-apps/api/core'
 
 const props = defineProps<{
   tab: any
   gitStatus?: any
 }>();
+
+onBeforeMount(async () => {
+  console.log("Before mounting");
+  console.log(props.tab.serviceId);
+  await invoke('load_environments_by_service', { serviceId: props.tab.serviceId });
+});
 
 const tab = computed(() => props.tab);
 const gitStatus = computed(() => props.gitStatus);

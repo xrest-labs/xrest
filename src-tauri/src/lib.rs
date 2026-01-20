@@ -1,8 +1,11 @@
 mod commands;
 mod config;
+mod domain;
+mod environment;
 mod history;
 mod io;
 mod services;
+mod swagger;
 #[cfg(test)]
 mod tests;
 mod token_cache;
@@ -39,7 +42,8 @@ pub fn run() {
             commands::git_sync,
             commands::get_history,
             commands::clear_history,
-            commands::import_swagger
+            swagger::import_swagger,
+            environment::load_environments_by_service,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -220,20 +220,7 @@ pub struct TabState {
     pub tabs: Vec<Tab>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ServiceStub {
-    pub id: String,
-    pub name: String,
-    pub directory: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct UserSettings {
-    pub theme: String, // "light", "dark", "system"
-    pub services: Vec<ServiceStub>,
-}
+pub use crate::domain::settings::{ServiceStub, Settings as UserSettings};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -254,14 +241,7 @@ pub struct HistoryEntry {
     pub created_at: String,
 }
 
-impl Default for UserSettings {
-    fn default() -> Self {
-        Self {
-            theme: "system".to_string(),
-            services: Vec::new(),
-        }
-    }
-}
+// Default implementation is now in the domain model
 
 #[cfg(test)]
 mod tests {

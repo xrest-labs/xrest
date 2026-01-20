@@ -1,4 +1,4 @@
-use crate::commands::parse_spec_content;
+use crate::swagger::parse_spec_content;
 
 #[test]
 fn test_parse_openapi_3_json() {
