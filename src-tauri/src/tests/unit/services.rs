@@ -94,6 +94,7 @@ async fn test_preflight_token_caching() {
         },
         auth: AuthConfig {
             r#type: "none".to_string(),
+            active: true,
             bearer_token: "".to_string(),
             basic_user: "".to_string(),
             basic_pass: "".to_string(),
@@ -426,6 +427,7 @@ fn create_mock_tab(
         },
         auth: AuthConfig {
             r#type: "none".to_string(),
+            active: true,
             bearer_token: "".to_string(),
             basic_user: "".to_string(),
             basic_pass: "".to_string(),

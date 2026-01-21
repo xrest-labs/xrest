@@ -1,11 +1,10 @@
 mod commands;
-mod config;
-mod history;
+pub mod domains;
+pub mod history;
 mod io;
 mod services;
 #[cfg(test)]
 mod tests;
-mod token_cache;
 mod types;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,8 +16,8 @@ pub fn run() {
         .setup(|app| {
             history::init_db(app.handle())?;
             // Load token cache
-            if let Ok(cache_path) = config::get_token_cache_path(app.handle()) {
-                let _ = token_cache::load_cache_from_file(&cache_path);
+            if let Ok(cache_path) = domains::auth::get_token_cache_path(app.handle()) {
+                let _ = domains::auth::cache::load_cache_from_file(&cache_path);
             }
             Ok(())
         })

@@ -1,4 +1,5 @@
-use crate::config::{load_service, save_service};
+use crate::domains::service::service::{ServiceDomain, ServiceFile};
+use crate::domains::settings::{SettingsDomain, UserSettings};
 use crate::io::MockFileSystem;
 use crate::types::{AuthType, Endpoint, EndpointMetadata, PreflightConfig, Service};
 use mockall::predicate::*;
@@ -14,7 +15,8 @@ fn test_load_save_settings() {
     mock_fs.expect_create_dir_all().returning(|_| Ok(()));
     mock_fs.expect_write().returning(|_, _| Ok(()));
 
-    let settings = crate::config::load_settings(&settings_path, &mock_fs).unwrap();
+    let domain = SettingsDomain::new(&mock_fs);
+    let settings = domain.load_settings(&settings_path).unwrap();
     assert_eq!(settings.theme, "system");
 
     // Test invalid YAML fallback
@@ -23,7 +25,8 @@ fn test_load_save_settings() {
     mock_fs
         .expect_read_to_string()
         .returning(|_| Ok("invalid: yaml: :".to_string()));
-    let settings = crate::config::load_settings(&settings_path, &mock_fs).unwrap();
+    let domain = SettingsDomain::new(&mock_fs);
+    let settings = domain.load_settings(&settings_path).unwrap();
     assert_eq!(settings.theme, "system");
 }
 
@@ -36,7 +39,8 @@ fn test_load_save_collections() {
     mock_fs.expect_create_dir_all().returning(|_| Ok(()));
     mock_fs.expect_write().returning(|_, _| Ok(()));
 
-    let collections = crate::config::load_collections(&path, &mock_fs).unwrap();
+    let domain = ServiceDomain::new(&mock_fs);
+    let collections = domain.load_collections(&path).unwrap();
     assert_eq!(collections.len(), 0);
 
     let mut mock_fs = MockFileSystem::new();
@@ -44,7 +48,8 @@ fn test_load_save_collections() {
     mock_fs
         .expect_read_to_string()
         .returning(|_| Ok("[]".to_string()));
-    let collections = crate::config::load_collections(&path, &mock_fs).unwrap();
+    let domain = ServiceDomain::new(&mock_fs);
+    let collections = domain.load_collections(&path).unwrap();
     assert_eq!(collections.len(), 0);
 }
 
@@ -54,7 +59,8 @@ fn test_load_save_tab_state() {
     let path = PathBuf::from("/tmp/tabstate.yaml");
 
     mock_fs.expect_exists().returning(|_| false);
-    let state = crate::config::load_tab_state(&path, &mock_fs).unwrap();
+    let domain = SettingsDomain::new(&mock_fs);
+    let state = domain.load_tab_state(&path).unwrap();
     assert!(state.is_none());
 }
 
@@ -94,7 +100,8 @@ fn test_load_service_success() {
         .with(eq(PathBuf::from(service_dir).join("endpoints")))
         .returning(|_| false);
 
-    let result = load_service(service_dir, &mock_fs);
+    let domain = ServiceDomain::new(&mock_fs);
+    let result = domain.load_service(service_dir);
     assert!(result.is_ok());
     let service = result.unwrap();
     assert_eq!(service.id, "s1");
@@ -155,20 +162,21 @@ fn test_save_service_versioning() {
     mock_fs.expect_create_dir_all().returning(|_| Ok(()));
 
     // First save should create version 1
-    let result = save_service(&mut service, &mock_fs);
+    let domain = ServiceDomain::new(&mock_fs);
+    let result = domain.save_service(&mut service);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 1);
     assert_eq!(service.endpoints[0].versions.len(), 1);
 
     // Save again with no changes should NOT create a new version
-    let result = save_service(&mut service, &mock_fs);
+    let result = domain.save_service(&mut service);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 1);
     assert_eq!(service.endpoints[0].versions.len(), 1);
 
     // Change URL and save should create version 2
     service.endpoints[0].url = "/new-items".to_string();
-    let result = save_service(&mut service, &mock_fs);
+    let result = domain.save_service(&mut service);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 2);
     assert_eq!(service.endpoints[0].versions.len(), 2);
