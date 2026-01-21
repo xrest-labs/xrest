@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ServiceFactory } from '@/domains/service/models'
 
 defineProps<{
   open: boolean
@@ -72,13 +73,16 @@ const addEnvRow = () => {
 const handleAddService = () => {
   if (!newServiceForm.value.name.trim()) return
 
+  // Use factory for ID and initial structure
+  const tempService = ServiceFactory.createDefault(
+    newServiceForm.value.name,
+    newServiceForm.value.directory
+  )
+
   const newService: any = {
-    id: `s-${Date.now()}`,
-    name: newServiceForm.value.name,
-    directory: newServiceForm.value.directory,
+    ...tempService,
     isAuthenticated: newServiceForm.value.isAuth,
     authType: newServiceForm.value.isAuth ? newServiceForm.value.authType.toLowerCase() : 'none',
-    endpoints: [],
     environments: [
       {
         name: 'DEV',

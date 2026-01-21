@@ -93,7 +93,7 @@ pub fn save_tab_state(app: AppHandle, state: crate::types::TabState) -> Result<(
 
 #[tauri::command]
 pub async fn send_request(app: AppHandle, tab: RequestTab) -> Result<QResponse, String> {
-    let cache_path = crate::config::get_token_cache_path(&app).ok();
+    let cache_path = crate::domains::auth::get_token_cache_path(&app).ok();
     let request_service = RequestService::new(&RealHttpClient, cache_path);
     let req_method = tab.method.clone();
     let req_url = tab.url.clone();
@@ -170,7 +170,7 @@ pub fn get_git_status(
     _app: AppHandle,
     directory: String,
 ) -> Result<crate::types::GitStatus, String> {
-    crate::config::get_git_status(&directory)
+    crate::domains::git::get_git_status(&directory)
 }
 
 #[tauri::command]
@@ -179,12 +179,12 @@ pub fn git_init(
     directory: String,
     remote_url: Option<String>,
 ) -> Result<(), String> {
-    crate::config::init_git(&directory, remote_url)
+    crate::domains::git::init_git(&directory, remote_url)
 }
 
 #[tauri::command]
 pub fn git_sync(_app: AppHandle, directory: String) -> Result<(), String> {
-    crate::config::sync_git(&directory)
+    crate::domains::git::sync_git(&directory)
 }
 
 #[tauri::command]
@@ -375,6 +375,8 @@ pub fn parse_spec_content(
                                 method: "GET".to_string(),
                                 url: "".to_string(),
                                 body: "".to_string(),
+                                body_type: "application/json".to_string(),
+                                body_params: vec![],
                                 headers: vec![],
                                 cache_token: true,
                                 cache_duration: "derived".to_string(),
@@ -471,6 +473,8 @@ pub fn parse_spec_content(
                                 method: "GET".to_string(),
                                 url: "".to_string(),
                                 body: "".to_string(),
+                                body_type: "application/json".to_string(),
+                                body_params: vec![],
                                 headers: vec![],
                                 cache_token: true,
                                 cache_duration: "derived".to_string(),

@@ -1,7 +1,6 @@
 use crate::io::{FileSystem, HttpClient};
 use crate::types::{PreflightConfig, QResponse, RequestTab, Service, TabState, UserSettings};
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Runtime};
 
 pub struct ConfigService<'a> {
@@ -14,8 +13,9 @@ impl<'a> ConfigService<'a> {
     }
 
     pub fn load_settings<R: Runtime>(&self, app: &AppHandle<R>) -> Result<UserSettings, String> {
-        let path = crate::config::get_settings_path(app)?;
-        crate::config::load_settings(&path, self.fs)
+        let path = crate::domains::settings::SettingsDomain::get_settings_path(app)?;
+        let domain = crate::domains::settings::SettingsDomain::new(self.fs);
+        domain.load_settings(&path)
     }
 
     pub fn save_settings<R: Runtime>(
@@ -23,21 +23,25 @@ impl<'a> ConfigService<'a> {
         app: &AppHandle<R>,
         settings: &UserSettings,
     ) -> Result<(), String> {
-        let path = crate::config::get_settings_path(app)?;
-        crate::config::save_settings(&path, settings, self.fs)
+        let path = crate::domains::settings::SettingsDomain::get_settings_path(app)?;
+        let domain = crate::domains::settings::SettingsDomain::new(self.fs);
+        domain.save_settings(&path, settings)
     }
 
     pub fn load_service(&self, directory: &str) -> Result<Service, String> {
-        crate::config::load_service(directory, self.fs)
+        let domain = crate::domains::service::service::ServiceDomain::new(self.fs);
+        domain.load_service(directory)
     }
 
     pub fn save_service(&self, service: &mut Service) -> Result<(), String> {
-        crate::config::save_service(service, self.fs)
+        let domain = crate::domains::service::service::ServiceDomain::new(self.fs);
+        domain.save_service(service)
     }
 
     pub fn load_collections<R: Runtime>(&self, app: &AppHandle<R>) -> Result<Vec<Service>, String> {
-        let path = crate::config::get_collections_path(app)?;
-        crate::config::load_collections(&path, self.fs)
+        let path = crate::domains::service::service::ServiceDomain::get_collections_path(app)?;
+        let domain = crate::domains::service::service::ServiceDomain::new(self.fs);
+        domain.load_collections(&path)
     }
 
     pub fn save_collections<R: Runtime>(
@@ -45,16 +49,18 @@ impl<'a> ConfigService<'a> {
         app: &AppHandle<R>,
         collections: &Vec<Service>,
     ) -> Result<(), String> {
-        let path = crate::config::get_collections_path(app)?;
-        crate::config::save_collections(&path, collections, self.fs)
+        let path = crate::domains::service::service::ServiceDomain::get_collections_path(app)?;
+        let domain = crate::domains::service::service::ServiceDomain::new(self.fs);
+        domain.save_collections(&path, collections)
     }
 
     pub fn load_tab_state<R: Runtime>(
         &self,
         app: &AppHandle<R>,
     ) -> Result<Option<TabState>, String> {
-        let path = crate::config::get_tab_state_path(app)?;
-        crate::config::load_tab_state(&path, self.fs)
+        let d = crate::domains::settings::SettingsDomain::new(self.fs);
+        let path = crate::domains::settings::SettingsDomain::get_tab_state_path(app)?;
+        d.load_tab_state(&path)
     }
 
     pub fn save_tab_state<R: Runtime>(
@@ -62,8 +68,9 @@ impl<'a> ConfigService<'a> {
         app: &AppHandle<R>,
         state: &TabState,
     ) -> Result<(), String> {
-        let path = crate::config::get_tab_state_path(app)?;
-        crate::config::save_tab_state(&path, state, self.fs)
+        let d = crate::domains::settings::SettingsDomain::new(self.fs);
+        let path = crate::domains::settings::SettingsDomain::get_tab_state_path(app)?;
+        d.save_tab_state(&path, state)
     }
 }
 
@@ -100,8 +107,8 @@ impl<'a> RequestService<'a> {
             );
         } else if !service_id_str.is_empty() {
             // Even if preflight is disabled for this tab, check if we have a cached token for this service
-            if let Some(cached) = crate::token_cache::get_cached_token(service_id_str) {
-                if crate::token_cache::is_token_valid(&cached) {
+            if let Some(cached) = crate::domains::auth::cache::get_cached_token(service_id_str) {
+                if crate::domains::auth::cache::is_token_valid(&cached) {
                     token = Some(cached.token);
                 }
             }
@@ -207,106 +214,14 @@ impl<'a> RequestService<'a> {
         config: &PreflightConfig,
         variables: &HashMap<String, String>,
     ) -> Result<String, String> {
-        let resolved_url = self.resolve_variables(&config.url, variables);
-        let resolved_body = self.resolve_variables(&config.body, variables);
-        let mut resolved_headers = Vec::new();
-        for h in &config.headers {
-            resolved_headers.push((
-                self.resolve_variables(&h.name, variables),
-                self.resolve_variables(&h.value, variables),
-            ));
-        }
-
-        let cache_key = crate::token_cache::generate_key(
+        crate::domains::auth::preflight::execute_preflight(
+            self.http,
             service_id,
-            &resolved_url,
-            &config.method,
-            &resolved_body,
-            &resolved_headers,
-        );
-
-        // Check cache
-        if config.cache_token {
-            if let Some(cached) = crate::token_cache::get_cached_token(&cache_key) {
-                if crate::token_cache::is_token_valid(&cached) {
-                    return Ok(cached.token);
-                }
-            }
-        }
-
-        if !resolved_body.is_empty()
-            && config.method.to_uppercase() != "GET"
-            && config.method.to_uppercase() != "HEAD"
-        {
-            resolved_headers.push(("Content-Type".to_string(), "application/json".to_string()));
-        }
-
-        let response = self
-            .http
-            .send_request(
-                &config.method,
-                &resolved_url,
-                resolved_headers,
-                if resolved_body.is_empty() {
-                    None
-                } else {
-                    Some(resolved_body)
-                },
-                vec![],
-            )
-            .await?;
-
-        let response_json: serde_json::Value = serde_json::from_str(&response.body)
-            .map_err(|e| format!("Preflight response is not valid JSON: {}", e))?;
-
-        let token = response_json
-            .get(&config.token_key)
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                format!(
-                    "Token key '{}' not found in preflight response",
-                    config.token_key
-                )
-            })?
-            .to_string();
-
-        if config.cache_token {
-            let expires_in_seconds = if config.cache_duration == "derived" {
-                let duration_value = response_json
-                    .get(&config.cache_duration_key)
-                    .and_then(|v| v.as_u64())
-                    .ok_or_else(|| {
-                        format!("Duration key '{}' not found", config.cache_duration_key)
-                    })?;
-
-                match config.cache_duration_unit.as_str() {
-                    "seconds" => duration_value,
-                    "minutes" => duration_value * 60,
-                    "hours" => duration_value * 3600,
-                    "days" => duration_value * 86400,
-                    _ => duration_value,
-                }
-            } else {
-                config.cache_duration.parse::<u64>().unwrap_or(3600)
-            };
-
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs();
-            crate::token_cache::set_cached_token(
-                cache_key,
-                token.clone(),
-                now + expires_in_seconds,
-            );
-
-            // Save the cache to disk if a path is provided
-            if let Some(path) = &self.cache_path {
-                let _ = crate::token_cache::save_cache_to_file(path);
-            }
-        }
-
-        Ok(token)
+            config,
+            variables,
+            self.cache_path.as_ref(),
+        )
+        .await
     }
 
     fn resolve_variables(&self, text: &str, variables: &HashMap<String, String>) -> String {

@@ -16,6 +16,11 @@ import { resolveVariables } from '@/lib/placeholders'
 import { formatSize } from '@/lib/request-utils'
 import { useEnvironmentVariables } from './useEnvironmentVariables'
 
+// Shared state (singleton pattern)
+const unsafeTabToProceed = ref<any>(null)
+const unsafeCountdown = ref(10)
+let unsafeTimer: any = null
+
 /**
  * Hook to manage request execution
  * @param isUnsafeDialogOpen - Ref to unsafe dialog open state
@@ -23,9 +28,6 @@ import { useEnvironmentVariables } from './useEnvironmentVariables'
  */
 export const useRequestExecution = (isUnsafeDialogOpen: any) => {
   const isSending = ref(false)
-  const unsafeTabToProceed = ref<any>(null)
-  const unsafeCountdown = ref(10)
-  let unsafeTimer: any = null
 
   const { getTabVariables, isUnsafeEnv } = useEnvironmentVariables()
 

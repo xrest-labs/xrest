@@ -76,6 +76,7 @@ async fn test_send_request_with_preflight() {
         },
         auth: crate::types::AuthConfig {
             r#type: "none".to_string(),
+            active: true,
             bearer_token: "".to_string(),
             basic_user: "".to_string(),
             basic_pass: "".to_string(),
@@ -90,6 +91,8 @@ async fn test_send_request_with_preflight() {
             method: "POST".to_string(),
             url: "https://auth.example.com/token".to_string(),
             body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
             headers: vec![],
             cache_token: false,
             cache_duration: "3600".to_string(),
@@ -165,6 +168,7 @@ async fn test_variable_resolution() {
         },
         auth: crate::types::AuthConfig {
             r#type: "none".to_string(),
+            active: true,
             bearer_token: "".to_string(),
             basic_user: "".to_string(),
             basic_pass: "".to_string(),
@@ -179,6 +183,8 @@ async fn test_variable_resolution() {
             method: "GET".to_string(),
             url: "".to_string(),
             body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
             headers: vec![],
             cache_token: true,
             cache_duration: "3600".to_string(),
@@ -193,21 +199,6 @@ async fn test_variable_resolution() {
 
     let result = service.send_request(tab).await;
     assert!(result.is_ok());
-}
-
-#[test]
-fn test_config_service_load_settings() {
-    let mut mock_fs = MockFileSystem::new();
-
-    mock_fs.expect_exists().returning(|_| true);
-
-    mock_fs.expect_read_to_string().returning(|_| {
-        Ok("services: []\nlastActiveServiceId: null\nlastActiveEndpointId: null".to_string())
-    });
-
-    // ConfigService::load_settings calls crate::config::load_settings which uses AppHandle.
-    // This is hard to test without a real AppHandle or mocking AppHandle.
-    // For now, let's just verify the structure is working.
 }
 
 #[tokio::test]
@@ -291,6 +282,7 @@ fn create_mock_tab(
         },
         auth: crate::types::AuthConfig {
             r#type: "none".to_string(),
+            active: true,
             bearer_token: "".to_string(),
             basic_user: "".to_string(),
             basic_pass: "".to_string(),
@@ -305,6 +297,8 @@ fn create_mock_tab(
             method: "GET".to_string(),
             url: "".to_string(),
             body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
             headers: vec![],
             cache_token: true,
             cache_duration: "3600".to_string(),

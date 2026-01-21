@@ -1,18 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { type Service } from '@/types'
 import { toast } from 'vue-sonner'
+import { ServiceManager } from '@/domains/service/manager'
+import { AdapterFactory } from '@/infrastructure/adapter-factory'
 
 export const useServicesStore = defineStore('services', () => {
     const services = ref<Service[]>([])
     const isLoading = ref(false)
+    const serviceManager = new ServiceManager(AdapterFactory.getServiceGateway())
 
     const loadServices = async () => {
         isLoading.value = true
         try {
-            const data = await invoke<Service[]>('get_services')
-            services.value = data || []
+            services.value = await serviceManager.getAllServices()
         } catch (error) {
             console.error('Failed to load services:', error)
             toast.error('Failed to load services', {
@@ -25,7 +26,7 @@ export const useServicesStore = defineStore('services', () => {
 
     const saveServices = async () => {
         try {
-            const updated = await invoke<Service[]>('save_services', { services: services.value })
+            const updated = await serviceManager.saveServices(services.value)
             if (updated) {
                 services.value = updated
             }
@@ -35,31 +36,46 @@ export const useServicesStore = defineStore('services', () => {
     }
 
     const addService = async (service: Service) => {
-        services.value.push(service)
-        await saveServices()
+        try {
+            const updated = await serviceManager.addService(services.value, service)
+            services.value = updated
+        } catch (error) {
+            console.error('Failed to add service:', error)
+            toast.error('Failed to add service')
+        }
     }
 
     const updateService = async (index: number, service: Service) => {
-        services.value[index] = service
-        await saveServices()
+        try {
+            const updated = await serviceManager.updateService(services.value, index, service)
+            services.value = updated
+        } catch (error) {
+            console.error('Failed to update service:', error)
+            toast.error('Failed to update service')
+        }
     }
 
     const deleteService = async (index: number) => {
-        services.value.splice(index, 1)
-        await saveServices()
+        try {
+            const updated = await serviceManager.deleteService(services.value, index)
+            services.value = updated
+        } catch (error) {
+            console.error('Failed to delete service:', error)
+            toast.error('Failed to delete service')
+        }
     }
 
     const setSelectedEnvironment = async (serviceId: string, env: string) => {
         const index = services.value.findIndex(s => s.id === serviceId)
         if (index !== -1) {
-            services.value[index].selectedEnvironment = env
-            await saveServices()
+            const service = { ...services.value[index], selectedEnvironment: env }
+            await updateService(index, service)
         }
     }
 
     const getGitStatus = async (directory: string) => {
         try {
-            return await invoke<any>('get_git_status', { directory })
+            return await serviceManager.getGitStatus(directory)
         } catch (error) {
             console.error('Failed to get git status:', error)
             return null
@@ -68,7 +84,7 @@ export const useServicesStore = defineStore('services', () => {
 
     const initGit = async (directory: string, remoteUrl?: string) => {
         try {
-            await invoke('git_init', { directory, remoteUrl })
+            await serviceManager.initGit(directory, remoteUrl)
             toast.success('Git initialized successfully')
         } catch (error) {
             toast.error('Failed to initialize git', {
@@ -79,13 +95,27 @@ export const useServicesStore = defineStore('services', () => {
 
     const syncGit = async (directory: string) => {
         try {
-            await invoke('git_sync', { directory })
+            await serviceManager.syncGit(directory)
             toast.success('Git sync completed')
         } catch (error) {
             toast.error('Failed to sync git', {
                 description: String(error)
             })
         }
+    }
+
+    const importService = async (directory: string): Promise<Service | null> => {
+        try {
+            const service = await serviceManager.importService(directory)
+            if (service) {
+                await loadServices()
+                return service
+            }
+        } catch (error) {
+            console.error('Failed to import service:', error)
+            throw error
+        }
+        return null
     }
 
     return {
@@ -99,6 +129,7 @@ export const useServicesStore = defineStore('services', () => {
         setSelectedEnvironment,
         getGitStatus,
         initGit,
-        syncGit
+        syncGit,
+        importService
     }
 })
