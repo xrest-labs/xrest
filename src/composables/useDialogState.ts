@@ -14,6 +14,8 @@ import { ref } from 'vue'
 // Shared state refs (singleton pattern)
 const isServiceDialogOpen = ref(false)
 const isEndpointDialogOpen = ref(false)
+const isCollectionDialogOpen = ref(false)
+const isCollectionEndpointDialogOpen = ref(false)
 const isSwaggerDialogOpen = ref(false)
 const isShareDialogOpen = ref(false)
 const isUnsafeDialogOpen = ref(false)
@@ -39,6 +41,22 @@ export const useDialogState = () => {
 
   const closeEndpointDialog = () => {
     isEndpointDialogOpen.value = false
+  }
+
+  const openCollectionDialog = () => {
+    isCollectionDialogOpen.value = true
+  }
+
+  const closeCollectionDialog = () => {
+    isCollectionDialogOpen.value = false
+  }
+
+  const openCollectionEndpointDialog = () => {
+    isCollectionEndpointDialogOpen.value = true
+  }
+
+  const closeCollectionEndpointDialog = () => {
+    isCollectionEndpointDialogOpen.value = false
   }
 
   const openSwaggerDialog = () => {
@@ -69,6 +87,8 @@ export const useDialogState = () => {
     // State
     isServiceDialogOpen,
     isEndpointDialogOpen,
+    isCollectionDialogOpen,
+    isCollectionEndpointDialogOpen,
     isSwaggerDialogOpen,
     isShareDialogOpen,
     isUnsafeDialogOpen,
@@ -78,6 +98,10 @@ export const useDialogState = () => {
     closeServiceDialog,
     openEndpointDialog,
     closeEndpointDialog,
+    openCollectionDialog,
+    closeCollectionDialog,
+    openCollectionEndpointDialog,
+    closeCollectionEndpointDialog,
     openSwaggerDialog,
     closeSwaggerDialog,
     openShareDialog,

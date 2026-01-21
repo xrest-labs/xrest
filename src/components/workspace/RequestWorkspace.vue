@@ -17,27 +17,44 @@ import { useTabManager } from '@/composables/useTabManager'
 import { useEnvironmentVariables } from '@/composables/useEnvironmentVariables'
 import { useRequestExecution } from '@/composables/useRequestExecution'
 import { useDialogState } from '@/composables/useDialogState'
-import { useServicesStore } from '@/stores/services'
+import { toast } from 'vue-sonner'
+import { syncVariableValue, syncVariableName, removeVariable, addVariableToAll } from '@/lib/environment-utils'
 
 const props = defineProps<{
-    // We can pass derived data if needed, but using composables is fine
-    gitStatuses: Record<string, any>
+    modelValue: string // Active tab ID
+    items: any[] // Services or Collections
+    gitStatuses?: Record<string, any>
+    label?: string // 'Service' or 'Collection'
 }>()
 
 const emit = defineEmits<{
+    (e: 'update:modelValue', value: string): void
     (e: 'sync-git', serviceId: string, directory: string): void
     (e: 'init-git', serviceId: string, directory: string, url?: string): void
     (e: 'share-request', tab: any): void
-    // Emitting save intent up? Or logic here? Logic here is mostly request specific.
+    (e: 'save-request', payload: { serviceIndex: number, updatedItem: any, tab: any }): void
+    (e: 'update-item', payload: { index: number, data: any, tab: any }): void
+    (e: 'delete-item', payload: { index: number, id: string, tabId: string }): void
+    (e: 'reload-items'): void
 }>()
 
+// Use tab manager but sync active tab with prop
 const {
     tabs,
-    activeTab,
+    activeTab, // usage: we sync this with props.modelValue
     addTab,
     closeTab,
     updateTabSnapshot
 } = useTabManager()
+
+// Sync props.modelValue with activeTab
+import { watch } from 'vue'
+watch(() => props.modelValue, (newVal) => {
+    activeTab.value = newVal
+})
+watch(activeTab, (newVal) => {
+    emit('update:modelValue', newVal)
+})
 
 const {
     activeEnvironments,
@@ -53,43 +70,37 @@ const {
     handleSendRequest
 } = useRequestExecution(isUnsafeDialogOpen)
 
-const servicesStore = useServicesStore()
-
-// Logic for saving and restoring that was in ServicesView
-import { toast } from 'vue-sonner'
-import { syncVariableValue, syncVariableName, removeVariable, addVariableToAll } from '@/lib/environment-utils'
-
 const handleSaveRequest = async (tab: any) => {
     if (!tab.endpointId) {
         toast.error('Cannot save: This tab is not linked to an endpoint')
         return
     }
 
-    // Find the service and endpoint
-    let serviceIndex = -1
+    // Find the service/collection and endpoint
+    let itemIndex = -1
     let endpointIndex = -1
 
-    for (let i = 0; i < servicesStore.services.length; i++) {
-        const idx = servicesStore.services[i].endpoints.findIndex(e => e.id === tab.endpointId)
+    for (let i = 0; i < props.items.length; i++) {
+        const idx = props.items[i].endpoints.findIndex((e: any) => e.id === tab.endpointId)
         if (idx !== -1) {
-            serviceIndex = i
+            itemIndex = i
             endpointIndex = idx
             break
         }
     }
 
-    if (serviceIndex === -1 || endpointIndex === -1) {
-        toast.error('Endpoint not found in any service')
+    if (itemIndex === -1 || endpointIndex === -1) {
+        toast.error('Endpoint not found')
         return
     }
 
-    const service = servicesStore.services[serviceIndex]
-    const endpoint = service.endpoints[endpointIndex]
+    const item = props.items[itemIndex]
+    const endpoint = item.endpoints[endpointIndex]
 
     // Update endpoint details
     let newPath = tab.url
-    if (service.environments.length > 0) {
-        for (const envGroup of service.environments) {
+    if (item.environments.length > 0) {
+        for (const envGroup of item.environments) {
             for (const variable of envGroup.variables) {
                 if (variable.name === 'BASE_URL' && variable.value && newPath.startsWith(variable.value)) {
                     newPath = newPath.replace(variable.value, '')
@@ -131,30 +142,18 @@ const handleSaveRequest = async (tab: any) => {
         }
     }
 
-    const updatedService = {
-        ...service,
-        endpoints: [...service.endpoints]
+    const updatedItem = {
+        ...item,
+        endpoints: [...item.endpoints]
     }
-    updatedService.endpoints[endpointIndex] = updatedEndpoint
+    updatedItem.endpoints[endpointIndex] = updatedEndpoint
 
-    try {
-        await servicesStore.updateService(serviceIndex, updatedService)
+    // Emit save event to parent
+    emit('save-request', { serviceIndex: itemIndex, updatedItem, tab })
+    updateTabSnapshot(tab)
 
-        // Sync versions from store after backend update
-        const finalService = servicesStore.services[serviceIndex]
-        const finalEndpoint = finalService?.endpoints.find(e => e.id === tab.endpointId)
-        if (finalEndpoint) {
-            tab.versions = finalEndpoint.versions || []
-        }
-
-        toast.success('Endpoint saved', {
-            description: `Changes to "${endpoint.name}" have been persisted.`,
-        })
-
-        updateTabSnapshot(tab)
-    } catch (error) {
-        toast.error('Failed to save endpoint')
-    }
+    // Check if versions updated (handled by parent update, but we need to refresh tab versions from result? 
+    // Usually local state update is reactive if props.items updates)
 }
 
 const restoreVersion = (tab: any, version: any) => {
@@ -169,49 +168,27 @@ const restoreVersion = (tab: any, version: any) => {
     toast.success(`Restored to version ${version.version}`)
 }
 
-// Service Settings Handlers
-const handleUpdateServiceSettings = async (tab: any) => {
-    const serviceIndex = servicesStore.services.findIndex(s => s.id === tab.serviceId)
-    if (serviceIndex !== -1) {
-        try {
-            await servicesStore.updateService(serviceIndex, tab.serviceData)
-            tab.title = tab.serviceData.name
-            updateTabSnapshot(tab)
-            toast.success('Service updated successfully')
-        } catch (error) {
-            toast.error('Failed to update service')
-        }
+// Settings Handlers
+const handleUpdateSettings = (tab: any) => {
+    const index = props.items.findIndex(s => s.id === tab.serviceId)
+    if (index !== -1) {
+        emit('update-item', { index, data: tab.serviceData, tab })
     }
 }
 
-const handleDeleteService = async (serviceId: string, tabId: string) => {
-    // We should probably bubble this up or handle directly via store
-    // But since it involves Ask dialog and closeTab, handle here is fine
-    // Or move to store but keep UI interaction here
-    const index = servicesStore.services.findIndex(s => s.id === serviceId)
-    // ... skipping duplicate logic for brevity, assuming similar as before
+const handleDeleteItem = async (itemId: string, tabId: string) => {
+    const index = props.items.findIndex(s => s.id === itemId)
     if (index !== -1) {
         // Using native confirm for now or import ask
         const { ask } = await import('@tauri-apps/plugin-dialog')
         const confirmation = await ask(
-            `Are you sure you want to delete service "${servicesStore.services[index].name}"? This will remove it from your workspace settings.`,
+            `Are you sure you want to delete "${props.items[index].name}"?`,
             { title: 'Confirm Deletion', kind: 'warning' }
         )
 
         if (confirmation) {
-            await servicesStore.deleteService(index)
-            closeTab(tabId)
-            toast.success('Service removed from workspace')
+            emit('delete-item', { index, id: itemId, tabId })
         }
-    }
-}
-
-const handleReloadService = async () => {
-    try {
-        await servicesStore.loadServices()
-        toast.success('Services reloaded from disk')
-    } catch (error) {
-        toast.error('Failed to reload services')
     }
 }
 </script>
@@ -348,12 +325,14 @@ const handleReloadService = async () => {
                     </ResizablePanelGroup>
 
                     <!-- Service Settings View -->
-                    <ServiceSettingsView v-else :tab="tab" :git-status="gitStatuses[tab.serviceId]"
-                        @save="handleUpdateServiceSettings" @delete="handleDeleteService"
+                    <ServiceSettingsView v-else :tab="tab"
+                        :git-status="props.gitStatuses ? props.gitStatuses[tab.serviceId] : undefined"
+                        @save="handleUpdateSettings" @delete="(id) => handleDeleteItem(id, tab.id)"
                         @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
                         @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)"
-                        @reload="handleReloadService" @add-variable="addVariableToAll" @remove-variable="removeVariable"
-                        @sync-variable-name="syncVariableName" @sync-variable-value="syncVariableValue" />
+                        @reload="emit('reload-items')" @add-variable="addVariableToAll"
+                        @remove-variable="removeVariable" @sync-variable-name="syncVariableName"
+                        @sync-variable-value="syncVariableValue" />
                 </TabsContent>
             </div>
         </Tabs>

@@ -43,6 +43,7 @@ export const defaultTabState = () => ({
   body: { type: 'application/json', content: '{\n  "key": "value"\n}' },
   auth: {
     type: 'bearer',
+    active: true,
     bearerToken: '',
     basicUser: '',
     basicPass: '',

@@ -13,7 +13,8 @@ import { useRequestExecution } from '@/composables/useRequestExecution'
 
 // New Components
 import ServiceExplorer from '@/components/services/ServiceExplorer.vue'
-import ServiceWorkspace from '@/components/services/ServiceWorkspace.vue'
+import RequestWorkspace from '@/components/workspace/RequestWorkspace.vue'
+import { toast } from 'vue-sonner'
 
 // Dialogs
 import AddServiceDialog from '@/components/dialogs/AddServiceDialog.vue'
@@ -50,6 +51,7 @@ const {
   tabs,
   activeTab,
   addTab,
+  closeTab,
   initializeTabsFromSavedState
 } = useTabManager()
 
@@ -148,6 +150,7 @@ const handleSelectEndpoint = (endpoint: any) => {
       },
       auth: {
         type: service?.isAuthenticated ? (service.authType?.toLowerCase() || 'none') : 'none',
+        active: true,
         bearerToken: '',
         basicUser: '',
         basicPass: '',
@@ -182,6 +185,58 @@ const handleShareRequest = (tab: any) => {
   sharingTabData.value = tab
   isShareDialogOpen.value = true
 }
+
+const handleSaveRequest = async (payload: { serviceIndex: number, updatedItem: any, tab: any }) => {
+  try {
+    await servicesStore.updateService(payload.serviceIndex, payload.updatedItem)
+
+    // Sync versions for tab
+    const finalService = servicesStore.services[payload.serviceIndex]
+    const finalEndpoint = finalService?.endpoints.find(e => e.id === payload.tab.endpointId)
+    if (finalEndpoint) {
+      payload.tab.versions = finalEndpoint.versions || []
+    }
+
+    toast.success('Endpoint saved', {
+      description: `Changes to "${payload.tab.title}" have been persisted.`
+    })
+  } catch (error) {
+    toast.error('Failed to save endpoint')
+    console.error(error)
+  }
+}
+
+const handleUpdateItem = async (payload: { index: number, data: any, tab: any }) => {
+  try {
+    await servicesStore.updateService(payload.index, payload.data)
+    payload.tab.title = payload.data.name
+    toast.success('Service updated')
+  } catch (error) {
+    toast.error('Failed to update service')
+  }
+}
+
+const handleDeleteItem = async (payload: { index: number, id: string, tabId: string }) => {
+  try {
+    const serviceName = servicesStore.services[payload.index].name
+    await servicesStore.deleteService(payload.index)
+    // useTabManager handles closing usually, but here we explicitly ask for it
+    // Wait, useTabManager is used in Workspace, but closing via prop sync or event?
+    // Workspace emits delete-item, but it called closeTab BEFORE emitting? 
+    // In current RequestWorkspace implementation (Step 233), it emits delete-item ONLY. It does NOT call closeTab.
+    // So we must close the tab here.
+    const tabsToClose = tabs.value.filter(t => t.serviceId === payload.id).map(t => t.id)
+    tabsToClose.forEach(tid => {
+      // We need closeTab exposed from useTabManager
+      const tabIdx = tabs.value.findIndex(t => t.id === tid)
+      if (tabIdx !== -1) tabs.value.splice(tabIdx, 1)
+    })
+
+    toast.success(`Service "${serviceName}" deleted`)
+  } catch (error) {
+    toast.error('Failed to delete service')
+  }
+}
 </script>
 
 <template>
@@ -197,8 +252,10 @@ const handleShareRequest = (tab: any) => {
 
       <!-- Workspace Component -->
       <ResizablePanel :default-size="80">
-        <ServiceWorkspace :git-statuses="gitStatuses" @sync-git="handleSyncGit" @init-git="handleInitGit"
-          @share-request="handleShareRequest" />
+        <RequestWorkspace v-model="activeTab" :items="servicesStore.services" :git-statuses="gitStatuses"
+          label="Service" @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
+          @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
+          @reload-items="servicesStore.loadServices" />
       </ResizablePanel>
     </ResizablePanelGroup>
 
