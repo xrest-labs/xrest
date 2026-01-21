@@ -11,13 +11,18 @@ import { ref } from 'vue'
  * Hook to manage dialog open/close state
  * @returns Object with dialog state refs and helper functions
  */
+// Shared state refs (singleton pattern)
+const isServiceDialogOpen = ref(false)
+const isEndpointDialogOpen = ref(false)
+const isSwaggerDialogOpen = ref(false)
+const isShareDialogOpen = ref(false)
+const isUnsafeDialogOpen = ref(false)
+
+/**
+ * Hook to manage dialog open/close state
+ * @returns Object with dialog state refs and helper functions
+ */
 export const useDialogState = () => {
-  // Dialog state refs
-  const isServiceDialogOpen = ref(false)
-  const isEndpointDialogOpen = ref(false)
-  const isSwaggerDialogOpen = ref(false)
-  const isShareDialogOpen = ref(false)
-  const isUnsafeDialogOpen = ref(false)
 
   // Helper functions
   const openServiceDialog = () => {
