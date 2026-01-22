@@ -104,6 +104,8 @@ impl HttpClient for RealHttpClient {
             res_headers.push(crate::types::Header {
                 name: name.to_string(),
                 value: value.to_str().unwrap_or_default().to_string(),
+                enabled: true,
+                secret_key: None,
             });
         }
 

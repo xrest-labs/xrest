@@ -8,6 +8,14 @@ pub use crate::domains::auth::AuthType;
 pub struct NameValue {
     pub name: String,
     pub value: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub secret_key: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 pub type Variable = NameValue;
@@ -130,10 +138,14 @@ mod tests {
             params: vec![NameValue {
                 name: "p1".to_string(),
                 value: "v1".to_string(),
+                enabled: true,
+                secret_key: None,
             }],
             headers: vec![NameValue {
                 name: "h1".to_string(),
                 value: "v1".to_string(),
+                enabled: true,
+                secret_key: None,
             }],
             body: "".to_string(),
             preflight: PreflightConfig {
@@ -175,6 +187,8 @@ mod tests {
                 variables: vec![NameValue {
                     name: "BASE_URL".to_string(),
                     value: "http://localhost:3000".to_string(),
+                    enabled: true,
+                    secret_key: None,
                 }],
             }],
             is_authenticated: true,

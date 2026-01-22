@@ -35,7 +35,13 @@ export const useEnvironmentVariables = () => {
       const vars: Record<string, string> = {}
       if (env) {
         env.variables.forEach(v => {
-          if (v.name) vars[v.name] = v.value || ''
+          if (v.name) {
+            if ((v as any).secretKey) {
+              vars[v.name] = `{{secret.${(v as any).secretKey}}}`
+            } else {
+              vars[v.name] = v.value || ''
+            }
+          }
         })
       }
       map[service.id] = vars
@@ -48,7 +54,13 @@ export const useEnvironmentVariables = () => {
       const vars: Record<string, string> = {}
       if (env) {
         env.variables.forEach(v => {
-          if (v.name) vars[v.name] = v.value || ''
+          if (v.name) {
+            if ((v as any).secretKey) {
+              vars[v.name] = `{{secret.${(v as any).secretKey}}}`
+            } else {
+              vars[v.name] = v.value || ''
+            }
+          }
         })
       }
       map[collection.id] = vars

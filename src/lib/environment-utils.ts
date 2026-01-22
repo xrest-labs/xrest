@@ -8,6 +8,8 @@
 export interface Variable {
   name: string
   value: string
+  enabled: boolean
+  secretKey?: string
 }
 
 export interface EnvironmentConfig {
@@ -44,7 +46,25 @@ export const syncVariableValue = (env: EnvironmentConfig, varName: string, newVa
   if (v) {
     v.value = newValue
   } else {
-    env.variables.push({ name: varName, value: newValue })
+    env.variables.push({ name: varName, value: newValue, enabled: true })
+  }
+}
+
+/**
+ * Sync a variable secret key for a specific environment
+ * @param env - Environment configuration to update
+ * @param varName - Name of the variable
+ * @param secretKey - Secret key to link (or undefined to unlink)
+ */
+export const syncVariableSecret = (env: EnvironmentConfig, varName: string, secretKey: string | undefined): void => {
+  if (!env.variables) env.variables = []
+  const v = env.variables.find((v: Variable) => v.name === varName)
+  if (v) {
+    v.secretKey = secretKey
+    // If linking a secret, optionally clear the value or keep it as placeholder?
+    // Let's keep value as is for now, maybe UI clears it.
+  } else {
+    env.variables.push({ name: varName, value: '', enabled: true, secretKey })
   }
 }
 
@@ -83,6 +103,6 @@ export const addVariableToAll = (environments: EnvironmentConfig[]): void => {
   const name = `NEW_VAR_${Date.now()}`
   environments.forEach(env => {
     if (!env.variables) env.variables = []
-    env.variables.push({ name, value: '' })
+    env.variables.push({ name, value: '', enabled: true })
   })
 }

@@ -27,12 +27,15 @@ pub fn save_settings(app: AppHandle, settings: UserSettings) -> Result<(), Strin
 pub fn get_services(app: AppHandle) -> Result<Vec<Service>, String> {
     let config_service = ConfigService::new(&RealFileSystem);
     let settings = config_service.load_settings(&app)?;
+
     let mut services = Vec::new();
     let mut errors = Vec::new();
 
     for stub in settings.services {
         match config_service.load_service(&stub.directory) {
-            Ok(service) => services.push(service),
+            Ok(service) => {
+                services.push(service);
+            }
             Err(e) => {
                 let err_msg = format!("Failed to load service {}: {}", stub.name, e);
                 println!("{}", err_msg);
@@ -243,6 +246,8 @@ pub async fn import_swagger(
                 variables: vec![NameValue {
                     name: "BASE_URL".to_string(),
                     value: base_url.clone(),
+                    enabled: true,
+                    secret_key: None,
                 }],
             },
             EnvironmentConfig {
@@ -251,6 +256,8 @@ pub async fn import_swagger(
                 variables: vec![NameValue {
                     name: "BASE_URL".to_string(),
                     value: base_url.clone(),
+                    enabled: true,
+                    secret_key: None,
                 }],
             },
             EnvironmentConfig {
@@ -259,6 +266,8 @@ pub async fn import_swagger(
                 variables: vec![NameValue {
                     name: "BASE_URL".to_string(),
                     value: base_url,
+                    enabled: true,
+                    secret_key: None,
                 }],
             },
         ],
@@ -343,6 +352,8 @@ pub fn curl_to_endpoint(
         headers.push(NameValue {
             name: name.to_string(),
             value: value.to_str().unwrap_or("").to_string(),
+            enabled: true,
+            secret_key: None,
         });
     }
 
@@ -443,12 +454,16 @@ pub fn parse_spec_content(
                                         params.push(NameValue {
                                             name: parameter_data.name.clone(),
                                             value: "".to_string(),
+                                            enabled: true,
+                                            secret_key: None,
                                         });
                                     }
                                     openapiv3::Parameter::Header { parameter_data, .. } => {
                                         headers.push(NameValue {
                                             name: parameter_data.name.clone(),
                                             value: "".to_string(),
+                                            enabled: true,
+                                            secret_key: None,
                                         });
                                     }
                                     _ => continue,
@@ -544,11 +559,15 @@ pub fn parse_spec_content(
                                     params.push(NameValue {
                                         name: p_name.to_string(),
                                         value: "".to_string(),
+                                        enabled: true,
+                                        secret_key: None,
                                     });
                                 } else if p_in == "header" {
                                     headers.push(NameValue {
                                         name: p_name.to_string(),
                                         value: "".to_string(),
+                                        enabled: true,
+                                        secret_key: None,
                                     });
                                 }
                             }
@@ -597,4 +616,51 @@ pub fn parse_spec_content(
     }
 
     Ok((base_url, endpoints))
+}
+
+#[tauri::command]
+pub async fn get_secrets(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    println!("DEBUG: get_secrets called");
+    tokio::task::spawn_blocking(move || {
+        let domain = crate::domains::secrets::SecretsDomain::new(&RealFileSystem);
+        domain.list_secrets(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn add_secret(
+    app: tauri::AppHandle,
+    key: String,
+    value: String,
+) -> Result<Vec<String>, String> {
+    println!("DEBUG: add_secret called for key: {}", key);
+    tokio::task::spawn_blocking(move || {
+        let domain = crate::domains::secrets::SecretsDomain::new(&RealFileSystem);
+        domain.add_secret(&app, &key, &value)?;
+        domain.list_secrets(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn delete_secret(app: tauri::AppHandle, key: String) -> Result<Vec<String>, String> {
+    println!("DEBUG: delete_secret called for key: {}", key);
+    tokio::task::spawn_blocking(move || {
+        let domain = crate::domains::secrets::SecretsDomain::new(&RealFileSystem);
+        domain.delete_secret(&app, &key)?;
+        domain.list_secrets(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn get_secret(key: String) -> Result<String, String> {
+    println!("DEBUG: get_secret called for key: {}", key);
+    tokio::task::spawn_blocking(move || crate::domains::secrets::SecretsDomain::get_secret(&key))
+        .await
+        .map_err(|e| e.to_string())?
 }

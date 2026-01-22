@@ -239,6 +239,8 @@ async fn test_status_codes_and_headers() {
                     headers: vec![crate::types::Header {
                         name: "Content-Type".to_string(),
                         value: "application/json".to_string(),
+                        enabled: true,
+                        secret_key: None,
                     }],
                     body: "{\"error\": \"not found\"}".to_string(),
                     error: None,

@@ -9,7 +9,17 @@ import {
   Settings2,
   Globe,
   AlertCircle,
+  Lock,
+  Unlock,
+  Key,
+  X,
+  Check,
 } from "lucide-vue-next";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -28,8 +38,11 @@ import {
   syncVariableName,
   removeVariable,
   addVariableToAll,
+  syncVariableSecret,
+  type Variable,
 } from "@/lib/environment-utils";
-import { computed } from "vue";
+import { useSecretsStore } from "@/stores/secrets";
+import { onMounted, computed } from "vue";
 
 const props = defineProps<{
   tab: any;
@@ -38,6 +51,16 @@ const props = defineProps<{
 
 const tab = computed(() => props.tab);
 const gitStatus = computed(() => props.gitStatus);
+const secretsStore = useSecretsStore();
+
+onMounted(() => {
+  secretsStore.fetchSecrets();
+});
+
+const getVariable = (env: any, varName: string) => {
+  if (!env.variables) return null;
+  return env.variables.find((v: Variable) => v.name === varName);
+};
 
 const emit = defineEmits<{
   (e: "save", tab: any): void;
@@ -69,32 +92,17 @@ const emit = defineEmits<{
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <Button
-          v-if="tab.serviceData.directory"
-          variant="outline"
-          size="sm"
-          class="h-8 gap-2"
-          @click="emit('reload', tab.serviceId)"
-        >
+        <Button v-if="tab.serviceData.directory" variant="outline" size="sm" class="h-8 gap-2"
+          @click="emit('reload', tab.serviceId)">
           <RefreshCw class="h-3.5 w-3.5" /> Reload
         </Button>
-        <Button
-          variant="destructive"
-          size="sm"
-          class="h-8 gap-2"
-          @click="emit('delete', tab.serviceId, tab.id)"
-        >
+        <Button variant="destructive" size="sm" class="h-8 gap-2" @click="emit('delete', tab.serviceId, tab.id)">
           <Trash2 class="h-3.5 w-3.5" />
           {{
             tab.serviceData.directory ? "Delete Service" : "Delete Collection"
           }}
         </Button>
-        <Button
-          variant="default"
-          size="sm"
-          class="h-8 gap-2 px-4"
-          @click="emit('save', tab)"
-        >
+        <Button variant="default" size="sm" class="h-8 gap-2 px-4" @click="emit('save', tab)">
           <Save class="h-3.5 w-3.5" /> Save Changes
         </Button>
       </div>
@@ -113,20 +121,12 @@ const emit = defineEmits<{
           <div class="grid gap-4">
             <div class="space-y-2">
               <Label class="">Service Name</Label>
-              <Input
-                v-model="tab.serviceData.name"
-                class="h-9"
-                placeholder="Enter service name"
-              />
+              <Input v-model="tab.serviceData.name" class="h-9" placeholder="Enter service name" />
             </div>
             <div v-if="tab.serviceData.directory" class="space-y-2">
               <Label class="">Base Directory</Label>
               <div class="flex gap-2">
-                <Input
-                  :model-value="tab.serviceData.directory"
-                  readonly
-                  class="h-9 bg-muted/30 flex-1"
-                />
+                <Input :model-value="tab.serviceData.directory" readonly class="h-9 bg-muted/30 flex-1" />
               </div>
               <p class="text-muted-foreground">
                 All service configuration is stored in this directory as YAML
@@ -147,38 +147,28 @@ const emit = defineEmits<{
           <div v-if="gitStatus" class="space-y-4 mt-2">
             <div class="flex items-center justify-between">
               <span class="text-muted-foreground">Status</span>
-              <div
-                v-if="gitStatus.isGit"
-                class="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100"
-              >
+              <div v-if="gitStatus.isGit"
+                class="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
                 <CheckCircle2 class="h-3 w-3" /> TRACKED
               </div>
-              <div
-                v-else
-                class="flex items-center gap-1.5 font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border"
-              >
+              <div v-else
+                class="flex items-center gap-1.5 font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border">
                 UNTRACKED
               </div>
             </div>
             <div v-if="gitStatus.isGit" class="space-y-3">
-              <div
-                class="flex items-center justify-between border-b border-dashed pb-2"
-              >
+              <div class="flex items-center justify-between border-b border-dashed pb-2">
                 <span class="text-muted-foreground">Branch</span>
                 <span class="font-bold">{{ gitStatus.branch || "main" }}</span>
               </div>
-              <div
-                class="flex items-center justify-between border-b border-dashed pb-2"
-              >
+              <div class="flex items-center justify-between border-b border-dashed pb-2">
                 <span class="text-muted-foreground">Dirty Files</span>
-                <span
-                  :class="[
-                    'font-bold',
-                    gitStatus.hasUncommittedChanges
-                      ? 'text-orange-500'
-                      : 'text-green-600',
-                  ]"
-                >
+                <span :class="[
+                  'font-bold',
+                  gitStatus.hasUncommittedChanges
+                    ? 'text-orange-500'
+                    : 'text-green-600',
+                ]">
                   {{
                     gitStatus.hasUncommittedChanges
                       ? "Changes Detected"
@@ -186,33 +176,20 @@ const emit = defineEmits<{
                   }}
                 </span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                class="w-full h-8 gap-2 mt-2"
-                @click="
-                  emit('syncGit', tab.serviceId, tab.serviceData.directory)
-                "
-              >
+              <Button variant="outline" size="sm" class="w-full h-8 gap-2 mt-2" @click="
+                emit('syncGit', tab.serviceId, tab.serviceData.directory)
+                ">
                 <RefreshCw class="h-3 w-3" /> Sync with Remote
               </Button>
             </div>
-            <div
-              v-else
-              class="p-3 bg-muted/20 rounded border border-dashed text-center space-y-2"
-            >
+            <div v-else class="p-3 bg-muted/20 rounded border border-dashed text-center space-y-2">
               <p class="text-muted-foreground">
                 This service directory is not a git repository. Initialize git
                 for automatic change tracking.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                class="h-7 gap-1.5"
-                @click="
-                  emit('initGit', tab.serviceId, tab.serviceData.directory)
-                "
-              >
+              <Button variant="outline" size="sm" class="h-7 gap-1.5" @click="
+                emit('initGit', tab.serviceId, tab.serviceData.directory)
+                ">
                 <GitBranch class="h-3 w-3" /> Initialize Git
               </Button>
             </div>
@@ -230,12 +207,8 @@ const emit = defineEmits<{
             Shared Environments & Variables
           </h3>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="h-8 gap-2 text-primary hover:bg-primary/5"
-          @click="addVariableToAll(tab.serviceData.environments)"
-        >
+        <Button variant="ghost" size="sm" class="h-8 gap-2 text-primary hover:bg-primary/5"
+          @click="addVariableToAll(tab.serviceData.environments)">
           <Plus class="h-3.5 w-3.5" /> Add New Variable
         </Button>
       </div>
@@ -245,29 +218,20 @@ const emit = defineEmits<{
           <TableHeader>
             <TableRow class="hover:bg-transparent bg-muted/30">
               <TableHead class="w-[180px] font-bold">Variable Name</TableHead>
-              <TableHead
-                v-for="env in tab.serviceData.environments"
-                :key="env.name"
-                class="min-w-[150px] border-l"
-              >
+              <TableHead v-for="env in tab.serviceData.environments" :key="env.name" class="min-w-[150px] border-l">
                 <div class="flex flex-col gap-1 items-start py-2">
                   <div class="flex items-center gap-1.5">
-                    <span
-                      :class="[
-                        'w-1.5 h-1.5 rounded-full',
-                        env.isUnsafe
-                          ? 'bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]'
-                          : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]',
-                      ]"
-                    ></span>
+                    <span :class="[
+                      'w-1.5 h-1.5 rounded-full',
+                      env.isUnsafe
+                        ? 'bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+                        : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]',
+                    ]"></span>
                     <span class="font-bold">{{ env.name }}</span>
                   </div>
                   <div class="flex items-center gap-1.5 mt-1">
                     <Switch v-model:checked="env.isUnsafe" class="scale-50" />
-                    <span
-                      class="uppercase tracking-tighter font-bold text-muted-foreground opacity-70"
-                      >Prod Warn</span
-                    >
+                    <span class="uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Prod Warn</span>
                   </div>
                 </div>
               </TableHead>
@@ -275,54 +239,87 @@ const emit = defineEmits<{
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow
-              v-for="varName in getUniqueVariableNames(
-                tab.serviceData.environments,
-              )"
-              :key="varName"
-              class="group h-11 hover:bg-muted/10 transition-colors"
-            >
+            <TableRow v-for="varName in getUniqueVariableNames(
+              tab.serviceData.environments,
+            )" :key="varName" class="group h-11 hover:bg-muted/10 transition-colors">
               <TableCell class="p-0 font-medium">
-                <input
-                  :value="varName"
-                  @blur="
-                    (e) =>
-                      syncVariableName(
-                        tab.serviceData.environments,
-                        varName,
-                        (e.target as HTMLInputElement).value,
-                      )
-                  "
-                  class="w-full h-11 bg-transparent border-none px-3 focus:outline-none focus:ring-0"
-                />
+                <input :value="varName" @blur="
+                  (e) =>
+                    syncVariableName(
+                      tab.serviceData.environments,
+                      varName,
+                      (e.target as HTMLInputElement).value,
+                    )
+                " class="w-full h-11 bg-transparent border-none px-3 focus:outline-none focus:ring-0" />
               </TableCell>
-              <TableCell
-                v-for="env in tab.serviceData.environments"
-                :key="env.name"
-                class="p-0 border-l group/cell"
-              >
-                <input
-                  :value="
-                    env.variables.find((v: any) => v.name === varName)?.value ||
-                    ''
-                  "
-                  @input="
+              <TableCell v-for="env in tab.serviceData.environments" :key="env.name"
+                class="p-0 border-l group/cell align-top">
+                <div class="flex items-center h-full w-full relative">
+                  <!-- Secret Linked Mode -->
+                  <div v-if="getVariable(env, varName)?.secretKey"
+                    class="flex-1 h-11 flex items-center px-4 gap-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs">
+                    <Lock class="h-3 w-3" />
+                    <span class="truncate">{{ getVariable(env, varName)?.secretKey }}</span>
+                  </div>
+
+                  <!-- Value Input Mode -->
+                  <input v-else :value="getVariable(env, varName)?.value || ''" @input="
                     (e) =>
                       syncVariableValue(
                         env,
                         varName,
                         (e.target as HTMLInputElement).value,
                       )
-                  "
-                  class="w-full h-11 bg-transparent border-none px-4 focus:outline-none focus:ring-0 group-hover/cell:bg-muted/20 transition-all"
-                  :placeholder="`Value for ${env.name}`"
-                />
+                  " class="w-full h-11 bg-transparent border-none px-4 focus:outline-none focus:ring-0 group-hover/cell:bg-muted/20 transition-all font-mono text-xs"
+                    :placeholder="`Value for ${env.name}`" />
+
+                  <!-- Secret Linker Trigger -->
+                  <Popover>
+                    <PopoverTrigger as-child>
+                      <Button variant="ghost" size="icon"
+                        class="h-6 w-6 absolute right-1 opacity-0 group-hover/cell:opacity-100 transition-opacity"
+                        :class="{ 'opacity-100 text-amber-500': getVariable(env, varName)?.secretKey }">
+                        <Key class="h-3.5 w-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-64 p-2" align="end">
+                      <div class="space-y-2">
+                        <div class="flex items-center justify-between pb-2 border-b">
+                          <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Link
+                            Secret</span>
+                          <span class="text-[10px] text-muted-foreground">{{ secretsStore.secrets.length }}
+                            available</span>
+                        </div>
+
+                        <div class="max-h-[200px] overflow-y-auto space-y-1">
+                          <button v-for="secret in secretsStore.secrets" :key="secret"
+                            class="w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-left"
+                            :class="{ 'bg-primary/10 text-primary': getVariable(env, varName)?.secretKey === secret }"
+                            @click="syncVariableSecret(env, varName, secret)">
+                            <span class="truncate font-mono">{{ secret }}</span>
+                            <Check v-if="getVariable(env, varName)?.secretKey === secret" class="h-3 w-3" />
+                          </button>
+                          <div v-if="secretsStore.secrets.length === 0"
+                            class="text-xs text-muted-foreground p-2 text-center">
+                            No secrets found
+                          </div>
+                        </div>
+
+                        <div v-if="getVariable(env, varName)?.secretKey" class="pt-2 border-t">
+                          <Button variant="ghost" size="sm"
+                            class="w-full h-7 text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
+                            @click="syncVariableSecret(env, varName, undefined)">
+                            <Unlock class="h-3 w-3" /> Unlink Secret
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </TableCell>
               <TableCell class="p-0 border-l text-center">
-                <button
-                  @click="removeVariable(tab.serviceData.environments, varName)"
-                  class="p-1 text-muted-foreground hover:text-destructive opacity-20 group-hover:opacity-100 transition-opacity"
-                >
+                <button @click="removeVariable(tab.serviceData.environments, varName)"
+                  class="p-1 text-muted-foreground hover:text-destructive opacity-20 group-hover:opacity-100 transition-opacity">
                   <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </TableCell>
@@ -330,22 +327,17 @@ const emit = defineEmits<{
           </TableBody>
         </Table>
       </div>
-      <div
-        v-if="
-          tab.serviceData.environments &&
-          getUniqueVariableNames(tab.serviceData.environments).length === 0
-        "
-        class="flex flex-col items-center justify-center py-12 text-muted-foreground border border-t-0 rounded-b-md bg-muted/5"
-      >
+      <div v-if="
+        tab.serviceData.environments &&
+        getUniqueVariableNames(tab.serviceData.environments).length === 0
+      "
+        class="flex flex-col items-center justify-center py-12 text-muted-foreground border border-t-0 rounded-b-md bg-muted/5">
         <AlertCircle class="h-8 w-8 opacity-20 mb-2" />
         <p class="">
           No variables defined for this
           {{ tab.serviceData.directory ? "service" : "collection" }}.
         </p>
-        <button
-          class="text-primary hover:underline mt-1"
-          @click="addVariableToAll(tab.serviceData.environments)"
-        >
+        <button class="text-primary hover:underline mt-1" @click="addVariableToAll(tab.serviceData.environments)">
           Add your first variable
         </button>
       </div>

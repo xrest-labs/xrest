@@ -39,7 +39,11 @@ pub fn run() {
             commands::get_history,
             commands::clear_history,
             commands::import_swagger,
-            commands::import_curl
+            commands::import_curl,
+            commands::get_secrets,
+            commands::add_secret,
+            commands::delete_secret,
+            commands::get_secret
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

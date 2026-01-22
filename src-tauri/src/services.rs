@@ -129,6 +129,8 @@ impl<'a> RequestService<'a> {
                 tab.headers.push(crate::types::Header {
                     name: token_header,
                     value: token_val,
+                    enabled: true,
+                    secret_key: None,
                 });
                 tab.auth.r#type = "none".to_string();
             }
@@ -227,18 +229,37 @@ impl<'a> RequestService<'a> {
     fn resolve_variables(&self, text: &str, variables: &HashMap<String, String>) -> String {
         let re = regex::Regex::new(r"\{\{([^}]+)\}\}").expect("Invalid regex");
         let mut result = text.to_string();
+
+        // We use a counter to prevent infinite recursion if somehow secret resolution leads to more variables
+        let mut iterations = 0;
+        const MAX_ITERATIONS: usize = 10;
+
         loop {
             let before = result.clone();
             result = re
                 .replace_all(&result, |caps: &regex::Captures| {
                     let var_name = caps[1].trim();
-                    variables
-                        .get(var_name)
-                        .cloned()
-                        .unwrap_or_else(|| caps[0].to_string())
+
+                    if var_name.starts_with("secret.") {
+                        let key = &var_name[7..];
+                        match crate::domains::secrets::SecretsDomain::get_secret(key) {
+                            Ok(val) => val,
+                            Err(e) => {
+                                println!("Failed to resolve secret {}: {}", key, e);
+                                caps[0].to_string()
+                            }
+                        }
+                    } else {
+                        variables
+                            .get(var_name)
+                            .cloned()
+                            .unwrap_or_else(|| caps[0].to_string())
+                    }
                 })
                 .to_string();
-            if result == before {
+
+            iterations += 1;
+            if result == before || iterations >= MAX_ITERATIONS {
                 break;
             }
         }

@@ -72,19 +72,45 @@ impl<'a> ServiceDomain<'a> {
                 .map_err(|e| e.to_string())?;
         }
 
+        // Load legacy endpoints.yaml as generic fallback map
+        let endpoints_path = base_path.join("endpoints.yaml");
+        let legacy_endpoints: std::collections::HashMap<String, Endpoint> =
+            if self.fs.exists(&endpoints_path) {
+                match self.fs.read_to_string(&endpoints_path) {
+                    Ok(content) => match serde_yaml::from_str::<Vec<Endpoint>>(&content) {
+                        Ok(eps) => eps.into_iter().map(|e| (e.id.clone(), e)).collect(),
+                        Err(_) => std::collections::HashMap::new(),
+                    },
+                    Err(_) => std::collections::HashMap::new(),
+                }
+            } else {
+                std::collections::HashMap::new()
+            };
+
         let mut endpoints = Vec::new();
         let endpoints_dir = base_path.join("endpoints");
-        if self.fs.exists(&endpoints_dir) {
-            for stub in service_file.endpoints {
-                let ep_path = endpoints_dir.join(format!("{}.yaml", stub.id));
-                if self.fs.exists(&ep_path) {
-                    match self.fs.read_to_string(&ep_path) {
-                        Ok(ep_content) => match serde_yaml::from_str::<Endpoint>(&ep_content) {
-                            Ok(endpoint) => endpoints.push(endpoint),
-                            Err(e) => println!("Failed to parse endpoint {}: {}", stub.id, e),
-                        },
-                        Err(e) => println!("Failed to read endpoint {}: {}", stub.id, e),
+
+        // Loop through stubs to preserve order and ensure we check all known endpoints
+        for stub in &service_file.endpoints {
+            let ep_path = endpoints_dir.join(format!("{}.yaml", stub.id));
+            let mut loaded = false;
+
+            // Try loading from individual file first
+            if self.fs.exists(&endpoints_dir) && self.fs.exists(&ep_path) {
+                if let Ok(ep_content) = self.fs.read_to_string(&ep_path) {
+                    if let Ok(endpoint) = serde_yaml::from_str::<Endpoint>(&ep_content) {
+                        endpoints.push(endpoint);
+                        loaded = true;
                     }
+                }
+            }
+
+            // Fallback to legacy endpoints.yaml if not loaded from file
+            if !loaded {
+                if let Some(endpoint) = legacy_endpoints.get(&stub.id) {
+                    endpoints.push(endpoint.clone());
+                } else {
+                    println!("Warning: Failed to load endpoint {}", stub.id);
                 }
             }
         }
@@ -114,14 +140,13 @@ impl<'a> ServiceDomain<'a> {
             serde_yaml::to_string(&service.environments).map_err(|e| e.to_string())?;
         self.fs.write(&env_path, &env_content)?;
 
-        // Save endpoints
+        // Ensure endpoints directory exists
         let endpoints_dir = dir.join("endpoints");
         if !self.fs.exists(&endpoints_dir) {
             self.fs.create_dir_all(&endpoints_dir)?;
         }
 
-        let mut endpoint_stubs = Vec::new();
-
+        // Save endpoints to individual files
         for endpoint in &mut service.endpoints {
             // Versioning logic
             let current_config = RequestConfig {
@@ -157,16 +182,25 @@ impl<'a> ServiceDomain<'a> {
                 endpoint.metadata.last_updated = now;
             }
 
+            // Save individual endpoint file
             let ep_path = endpoints_dir.join(format!("{}.yaml", endpoint.id));
-            let ep_content = serde_yaml::to_string(endpoint).map_err(|e| e.to_string())?;
+            let ep_content = serde_yaml::to_string(&endpoint).map_err(|e| e.to_string())?;
             self.fs.write(&ep_path, &ep_content)?;
-
-            endpoint_stubs.push(EndpointStub {
-                id: endpoint.id.clone(),
-                name: endpoint.name.clone(),
-                url: endpoint.url.clone(),
-            });
         }
+
+        // Remove legacy endpoints.yaml if it exists to avoid confusion
+        // Note: fs trait missing remove_file, so skipping delete for now to be safe,
+        // but load_service prioritizes endpoints/ anyway.
+
+        let endpoint_stubs = service
+            .endpoints
+            .iter()
+            .map(|e| EndpointStub {
+                id: e.id.clone(),
+                name: e.name.clone(),
+                url: e.url.clone(),
+            })
+            .collect::<Vec<_>>();
 
         // Save service metadata
         let service_file = ServiceFile {

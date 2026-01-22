@@ -3,6 +3,7 @@ export type Token = {
     content: string;
     resolvedValue?: string;
     isValid?: boolean;
+    isSecret?: boolean;
 };
 
 const MAX_RECURSION_DEPTH = 10;
@@ -33,7 +34,8 @@ export const resolveVariables = (
 
 export const parseInterpolation = (
     text: string,
-    variables: Record<string, string> = {}
+    variables: Record<string, string> = {},
+    secrets: string[] = []
 ): Token[] => {
     const tokens: Token[] = [];
     const regex = /\{\{(.*?)\}\}/g;
@@ -50,16 +52,28 @@ export const parseInterpolation = (
 
         const fullMatch = match[0];
         const varName = match[1].trim();
-        // Resolve value recursively for tooltips
-        const resolvedValue = variables[varName] !== undefined
-            ? resolveVariables(variables[varName], variables)
-            : undefined;
+
+        const isSecret = varName.startsWith('secret.');
+        let isValid = false;
+        let resolvedValue: string | undefined = undefined;
+
+        if (isSecret) {
+            const secretKey = varName.substring(7); // "secret." is 7 chars
+            isValid = secrets.includes(secretKey);
+            resolvedValue = isValid ? '********' : undefined;
+        } else {
+            isValid = variables[varName] !== undefined;
+            if (isValid) {
+                resolvedValue = resolveVariables(variables[varName], variables);
+            }
+        }
 
         tokens.push({
             type: 'variable',
             content: fullMatch,
             resolvedValue,
-            isValid: variables[varName] !== undefined,
+            isValid,
+            isSecret,
         });
 
         lastIndex = regex.lastIndex;

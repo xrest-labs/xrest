@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, watch, nextTick } from "vue";
 import { parseInterpolation } from "@/lib/placeholders";
+import { useSecretsStore } from "@/stores/secrets";
 import {
   Tooltip,
   TooltipContent,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import Prism from "prismjs";
+import { Lock } from "lucide-vue-next";
 import "prismjs/components/prism-json";
 
 const props = defineProps<{
@@ -27,8 +29,13 @@ const highlightRef = ref<HTMLDivElement | null>(null);
 const textRef = ref<HTMLDivElement | null>(null);
 const hotspotRef = ref<HTMLDivElement | null>(null);
 
+const secretsStore = useSecretsStore();
 const tokens = computed(() =>
-  parseInterpolation(props.modelValue || "", props.variables || {}),
+  parseInterpolation(
+    props.modelValue || "",
+    props.variables || {},
+    secretsStore.secrets,
+  ),
 );
 
 const internalValue = computed({
@@ -129,142 +136,113 @@ const highlightedContent = computed(() => {
 
 <template>
   <div
-    class="relative w-full group overflow-hidden rounded-md border bg-background transition-shadow focus-within:ring-1 focus-within:ring-primary"
-  >
+    class="relative w-full group overflow-hidden rounded-md border bg-background transition-shadow focus-within:ring-1 focus-within:ring-primary">
     <!-- 1. Text Layer -->
-    <div
-      ref="textRef"
+    <div ref="textRef"
       class="absolute inset-0 pointer-events-none px-3 py-2 font-mono whitespace-pre-wrap break-all overflow-hidden"
-      :style="{ fontSize: 'inherit' }"
-    >
+      :style="{ fontSize: 'inherit' }">
       <template v-if="highlightedContent">
         <div v-html="highlightedContent" class="prism-code-inline"></div>
       </template>
       <template v-else v-for="(token, i) in tokens" :key="i">
         <span v-if="token.type === 'text'" class="text-foreground">{{
           token.content
-        }}</span>
+          }}</span>
         <span v-else class="text-transparent selection:text-transparent">{{
           token.content
-        }}</span>
+          }}</span>
       </template>
     </div>
 
     <!-- 2. Highlight Layer -->
-    <div
-      ref="highlightRef"
+    <div ref="highlightRef"
       class="absolute inset-0 pointer-events-none px-3 py-2 font-mono whitespace-pre-wrap break-all overflow-hidden"
-      :style="{ fontSize: 'inherit' }"
-    >
+      :style="{ fontSize: 'inherit' }">
       <template v-for="(token, i) in tokens" :key="i">
         <span v-if="token.type === 'text'" class="text-transparent">{{
           token.content
-        }}</span>
-        <span
-          v-else
-          :class="
-            cn(
-              'px-0.5 rounded font-bold transition-all mx-px',
-              token.isValid
-                ? 'text-primary bg-primary/20'
-                : 'text-destructive bg-destructive/20 underline decoration-destructive/50 underline-offset-2',
-            )
-          "
-        >
+          }}</span>
+        <span v-else :class="cn(
+          'px-0.5 rounded transition-all mx-px',
+          token.isSecret
+            ? 'text-amber-500 bg-amber-500/20'
+            : token.isValid
+              ? 'text-primary bg-primary/20'
+              : 'text-destructive bg-destructive/20 underline decoration-destructive/50 underline-offset-2',
+        )
+          ">
           {{ token.content }}
         </span>
       </template>
     </div>
 
     <!-- 3. Real Textarea -->
-    <textarea
-      ref="textareaRef"
-      v-model="internalValue"
-      :placeholder="placeholder"
-      :class="
-        cn(
-          'w-full min-h-[150px] bg-transparent border-none p-2 focus:outline-none resize-y relative z-10 font-mono',
-          'text-transparent caret-foreground selection:bg-primary/30',
-          props.class,
-        )
-      "
-      :style="{ fontSize: 'inherit' }"
-      @scroll="syncScroll"
-      @input="syncScroll"
-      spellcheck="false"
-      autocapitalize="off"
-      autocorrect="off"
-    ></textarea>
+    <textarea ref="textareaRef" v-model="internalValue" :placeholder="placeholder" :class="cn(
+      'w-full min-h-[150px] bg-transparent border-none p-2 focus:outline-none resize-y relative z-10 font-mono',
+      'text-transparent caret-foreground selection:bg-primary/30',
+      props.class,
+    )
+      " :style="{ fontSize: 'inherit' }" @scroll="syncScroll" @input="syncScroll" spellcheck="false"
+      autocapitalize="off" autocorrect="off"></textarea>
 
     <!-- 4. Hotspot Layer -->
-    <div
-      ref="hotspotRef"
+    <div ref="hotspotRef"
       class="absolute inset-0 pointer-events-none px-3 py-2 font-mono whitespace-pre-wrap break-all overflow-hidden z-20"
-      :style="{ fontSize: 'inherit' }"
-    >
+      :style="{ fontSize: 'inherit' }">
       <template v-for="(token, i) in tokens" :key="i">
         <span v-if="token.type === 'text'" class="text-transparent">{{
           token.content
-        }}</span>
+          }}</span>
         <template v-else>
           <TooltipProvider :delay-duration="0">
             <Tooltip>
               <TooltipTrigger as-child>
-                <span
-                  class="px-0.5 mx-px rounded font-bold text-transparent pointer-events-auto cursor-help"
-                  @mousedown.prevent="handleHotspotClick"
-                >
+                <span class="px-0.5 mx-px rounded font-bold text-transparent pointer-events-auto cursor-help"
+                  @mousedown.prevent="handleHotspotClick">
                   {{ token.content }}
                 </span>
               </TooltipTrigger>
-              <TooltipContent
-                side="top"
-                class="max-w-xs break-all z-[100] shadow-xl border-primary/20"
-              >
+              <TooltipContent side="top" class="max-w-xs break-all z-[100] shadow-xl border-primary/20">
                 <div class="space-y-1.5 p-0.5">
                   <div v-if="token.isValid" class="flex flex-col gap-1">
                     <div class="flex items-center justify-between gap-4">
                       <div class="flex items-center gap-2">
-                        <div
-                          class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
-                        ></div>
-                        <span
-                          class="uppercase font-bold tracking-wider text-muted-foreground"
-                          >Active Value</span
-                        >
+                        <div :class="cn(
+                          'h-1.5 w-1.5 rounded-full animate-pulse',
+                          token.isSecret ? 'bg-amber-500' : 'bg-primary',
+                        )
+                          "></div>
+                        <span class="uppercase font-bold tracking-wider text-muted-foreground">{{
+                          token.isSecret ? "Secure Secret" : "Active Value"
+                        }}</span>
                       </div>
-                      <span
-                        v-if="environmentName"
-                        class="bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-bold border border-border/50"
-                        >{{ environmentName }}</span
-                      >
+                      <span v-if="!token.isSecret && environmentName"
+                        class="bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-bold border border-border/50">{{
+                        environmentName }}</span>
+                      <Lock v-if="token.isSecret" class="h-3 w-3 text-amber-500" />
                     </div>
-                    <span
-                      class="text-primary bg-primary/5 p-1.5 rounded border border-primary/10 break-all select-all"
-                      >{{ token.resolvedValue }}</span
-                    >
+                    <div v-if="token.isSecret"
+                      class="text-amber-500 bg-amber-500/5 p-1.5 rounded border border-amber-500/10 text-xs italic">
+                      Value is securely stored in macOS Keychain and cannot be
+                      viewed here.
+                    </div>
+                    <span v-else
+                      class="text-primary bg-primary/5 p-1.5 rounded border border-primary/10 break-all select-all font-mono">{{
+                      token.resolvedValue }}</span>
                   </div>
                   <div v-else class="flex flex-col gap-1 text-destructive">
                     <div class="flex items-center justify-between gap-4">
                       <div class="flex items-center gap-2">
-                        <div
-                          class="h-1.5 w-1.5 rounded-full bg-destructive animate-bounce"
-                        ></div>
-                        <span class="uppercase font-bold tracking-wider"
-                          >Missing Variable</span
-                        >
+                        <div class="h-1.5 w-1.5 rounded-full bg-destructive animate-bounce"></div>
+                        <span class="uppercase font-bold tracking-wider">Missing Variable</span>
                       </div>
-                      <span
-                        v-if="environmentName"
-                        class="bg-destructive/10 px-1.5 py-0.5 rounded text-destructive font-bold border border-destructive/20"
-                        >{{ environmentName }}</span
-                      >
+                      <span v-if="environmentName"
+                        class="bg-destructive/10 px-1.5 py-0.5 rounded text-destructive font-bold border border-destructive/20">{{
+                        environmentName }}</span>
                     </div>
-                    <span class="leading-relaxed"
-                      >The variable
+                    <span class="leading-relaxed">The variable
                       <code class="font-bold">{{ token.content }}</code> is not
-                      defined in the current environment.</span
-                    >
+                      defined in the current environment.</span>
                   </div>
                 </div>
               </TooltipContent>
