@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Service-first client for microservices"
 authors = ["Aravind Kunnath"]
 edition = "2021"
+default-run = "xrest"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -38,6 +39,8 @@ openapiv3 = "2.0.0"
 async-trait = "0.1"
 base64 = "0.21"
 urlencoding = "2.1"
+curl-parser = "0.6.0"
+url = "2.5.8"
 
 [dev-dependencies]
 mockito = "1"

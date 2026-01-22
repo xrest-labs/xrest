@@ -6,8 +6,10 @@ use crate::types::{
 };
 use openapiv3::OpenAPI;
 
+use curl_parser::ParsedRequest;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
+use url::Url;
 
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> Result<UserSettings, String> {
@@ -280,6 +282,108 @@ pub async fn import_swagger(
     config_service.save_settings(&app, &settings)?;
 
     Ok(service)
+}
+
+#[tauri::command]
+pub async fn import_curl(
+    app: AppHandle,
+    service_id: String,
+    curl_command: String,
+) -> Result<Service, String> {
+    let config_service = ConfigService::new(&RealFileSystem);
+    let settings = config_service.load_settings(&app)?;
+
+    let service_stub = settings
+        .services
+        .iter()
+        .find(|s| s.id == service_id)
+        .ok_or_else(|| format!("Service not found: {}", service_id))?;
+
+    let mut service = config_service.load_service(&service_stub.directory)?;
+
+    let endpoint = curl_to_endpoint(
+        service_id.clone(),
+        &curl_command,
+        service.is_authenticated,
+        service.auth_type.as_ref().map(|at| at.to_string()),
+    )?;
+
+    service.endpoints.push(endpoint);
+    config_service.save_service(&mut service)?;
+
+    Ok(service)
+}
+
+pub fn curl_to_endpoint(
+    service_id: String,
+    curl_command: &str,
+    authenticated: bool,
+    auth_type: Option<String>,
+) -> Result<Endpoint, String> {
+    let parsed = ParsedRequest::load(curl_command, serde_json::Value::Null)
+        .map_err(|e| format!("Failed to parse cURL: {}", e))?;
+
+    let endpoint_id = format!("e-{}", uuid::Uuid::new_v4());
+
+    // Extract endpoint name from URL
+    let url_str = parsed.url.to_string();
+    let endpoint_name = if let Ok(u) = Url::parse(&url_str) {
+        let path = u.path().trim_start_matches('/').replace('/', " ");
+        if path.is_empty() {
+            "New Endpoint".to_string()
+        } else {
+            path
+        }
+    } else {
+        "New Endpoint".to_string()
+    };
+
+    let mut headers = Vec::new();
+    for (name, value) in &parsed.headers {
+        headers.push(NameValue {
+            name: name.to_string(),
+            value: value.to_str().unwrap_or("").to_string(),
+        });
+    }
+
+    let body = parsed.body.join("");
+
+    Ok(Endpoint {
+        id: endpoint_id,
+        service_id,
+        name: endpoint_name,
+        method: parsed.method.to_string(),
+        url: url_str,
+        authenticated,
+        auth_type: auth_type.unwrap_or_else(|| "none".to_string()),
+        metadata: EndpointMetadata {
+            version: "1.0".to_string(),
+            last_updated: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        },
+        params: Vec::new(),
+        headers,
+        body,
+        preflight: PreflightConfig {
+            enabled: false,
+            method: "GET".to_string(),
+            url: "".to_string(),
+            body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
+            headers: vec![],
+            cache_token: true,
+            cache_duration: "derived".to_string(),
+            cache_duration_key: "expires_in".to_string(),
+            cache_duration_unit: "seconds".to_string(),
+            token_key: "access_token".to_string(),
+            token_header: Some("Authorization".to_string()),
+        },
+        last_version: 0,
+        versions: vec![],
+    })
 }
 
 #[tauri::command]

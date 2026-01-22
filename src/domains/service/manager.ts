@@ -44,4 +44,8 @@ export class ServiceManager {
     async importService(directory: string): Promise<Service> {
         return this.gateway.importService(directory)
     }
+
+    async importCurl(serviceId: string, curlCommand: string): Promise<Service> {
+        return this.gateway.importCurl(serviceId, curlCommand)
+    }
 }

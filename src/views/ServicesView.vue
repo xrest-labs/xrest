@@ -26,10 +26,12 @@ import AddEndpointDialog from "@/components/dialogs/AddEndpointDialog.vue";
 import SwaggerImportDialog from "@/components/dialogs/SwaggerImportDialog.vue";
 import ShareRequestDialog from "@/components/dialogs/ShareRequestDialog.vue";
 import UnsafeEnvironmentDialog from "@/components/dialogs/UnsafeEnvironmentDialog.vue";
+import ImportCurlDialog from "@/components/dialogs/ImportCurlDialog.vue";
 import { ref } from "vue";
 
 const servicesStore = useServicesStore();
 const sharingTabData = ref<any>(null);
+const selectedImportServiceId = ref<string>("");
 
 const {
   isServiceDialogOpen,
@@ -37,6 +39,7 @@ const {
   isSwaggerDialogOpen,
   isShareDialogOpen,
   isUnsafeDialogOpen,
+  isCurlDialogOpen,
 } = useDialogState();
 
 const { allActiveVariables, activeEnvironments, getEnvName } =
@@ -195,6 +198,11 @@ const handleShareRequest = (tab: any) => {
   isShareDialogOpen.value = true;
 };
 
+const handleImportCurl = (service: any) => {
+  selectedImportServiceId.value = service?.id || "";
+  isCurlDialogOpen.value = true;
+};
+
 const handleSaveRequest = async (payload: {
   serviceIndex: number;
   updatedItem: any;
@@ -272,70 +280,38 @@ const handleDeleteItem = async (payload: {
     <ResizablePanelGroup direction="horizontal">
       <!-- Sidebar Component -->
       <ResizablePanel :default-size="20" :min-size="15">
-        <ServiceExplorer
-          @select-endpoint="handleSelectEndpoint"
-          @select-service-settings="handleSelectServiceSettings"
-          @env-change="servicesStore.setSelectedEnvironment"
-        />
+        <ServiceExplorer @select-endpoint="handleSelectEndpoint" @select-service-settings="handleSelectServiceSettings"
+          @env-change="servicesStore.setSelectedEnvironment" @import-curl="handleImportCurl" />
       </ResizablePanel>
 
       <ResizableHandle with-handle />
 
       <!-- Workspace Component -->
       <ResizablePanel :default-size="80">
-        <RequestWorkspace
-          v-model="activeTab"
-          :items="servicesStore.services"
-          :git-statuses="gitStatuses"
-          label="Service"
-          @sync-git="handleSyncGit"
-          @init-git="handleInitGit"
-          @share-request="handleShareRequest"
-          @save-request="handleSaveRequest"
-          @update-item="handleUpdateItem"
-          @delete-item="handleDeleteItem"
-          @reload-items="servicesStore.loadServices"
-        />
+        <RequestWorkspace v-model="activeTab" :items="servicesStore.services" :git-statuses="gitStatuses"
+          label="Service" @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
+          @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
+          @reload-items="servicesStore.loadServices" />
       </ResizablePanel>
     </ResizablePanelGroup>
 
     <!-- Dialogs -->
-    <AddServiceDialog
-      :open="isServiceDialogOpen"
-      @update:open="isServiceDialogOpen = $event"
-      @service-created="handleServiceCreated"
-    />
+    <AddServiceDialog :open="isServiceDialogOpen" @update:open="isServiceDialogOpen = $event"
+      @service-created="handleServiceCreated" />
 
-    <AddEndpointDialog
-      :open="isEndpointDialogOpen"
-      :services="servicesStore.services"
-      :all-active-variables="allActiveVariables"
-      :active-environments="activeEnvironments"
-      @update:open="isEndpointDialogOpen = $event"
-      @endpoint-created="handleEndpointCreated"
-    />
+    <AddEndpointDialog :open="isEndpointDialogOpen" :services="servicesStore.services"
+      :all-active-variables="allActiveVariables" :active-environments="activeEnvironments"
+      @update:open="isEndpointDialogOpen = $event" @endpoint-created="handleEndpointCreated" />
 
-    <SwaggerImportDialog
-      :open="isSwaggerDialogOpen"
-      @update:open="isSwaggerDialogOpen = $event"
-      @import-complete="handleSwaggerImportComplete"
-    />
+    <SwaggerImportDialog :open="isSwaggerDialogOpen" @update:open="isSwaggerDialogOpen = $event"
+      @import-complete="handleSwaggerImportComplete" />
 
-    <ShareRequestDialog
-      :open="isShareDialogOpen"
-      :tab="sharingTabData"
-      @update:open="isShareDialogOpen = $event"
-    />
+    <ShareRequestDialog :open="isShareDialogOpen" :tab="sharingTabData" @update:open="isShareDialogOpen = $event" />
 
-    <UnsafeEnvironmentDialog
-      :open="isUnsafeDialogOpen"
-      :environment-name="
-        unsafeTabToProceed ? getEnvName(unsafeTabToProceed) : ''
-      "
-      :countdown="unsafeCountdown"
-      @update:open="isUnsafeDialogOpen = $event"
-      @proceed="proceedWithUnsafeRequest"
-      @cancel="cancelUnsafeRequest"
-    />
+    <UnsafeEnvironmentDialog :open="isUnsafeDialogOpen" :environment-name="unsafeTabToProceed ? getEnvName(unsafeTabToProceed) : ''
+      " :countdown="unsafeCountdown" @update:open="isUnsafeDialogOpen = $event" @proceed="proceedWithUnsafeRequest"
+      @cancel="cancelUnsafeRequest" />
+    <ImportCurlDialog :open="isCurlDialogOpen" :service-id="selectedImportServiceId"
+      @update:open="isCurlDialogOpen = $event" @import-complete="handleSwaggerImportComplete" />
   </div>
 </template>

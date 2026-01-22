@@ -118,6 +118,27 @@ export const useServicesStore = defineStore('services', () => {
         return null
     }
 
+    const importCurl = async (serviceId: string, curlCommand: string): Promise<Service | null> => {
+        try {
+            const updatedService = await serviceManager.importCurl(serviceId, curlCommand)
+            if (updatedService) {
+                const index = services.value.findIndex(s => s.id === serviceId)
+                if (index !== -1) {
+                    services.value[index] = updatedService
+                } else {
+                    services.value.push(updatedService)
+                }
+                return updatedService
+            }
+        } catch (error) {
+            console.error('Failed to import curl:', error)
+            toast.error('Import Failed', {
+                description: String(error)
+            })
+        }
+        return null
+    }
+
     return {
         services,
         isLoading,
@@ -130,6 +151,7 @@ export const useServicesStore = defineStore('services', () => {
         getGitStatus,
         initGit,
         syncGit,
-        importService
+        importService,
+        importCurl
     }
 })

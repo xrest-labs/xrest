@@ -19,6 +19,7 @@ const isCollectionEndpointDialogOpen = ref(false)
 const isSwaggerDialogOpen = ref(false)
 const isShareDialogOpen = ref(false)
 const isUnsafeDialogOpen = ref(false)
+const isCurlDialogOpen = ref(false)
 
 /**
  * Hook to manage dialog open/close state
@@ -83,6 +84,14 @@ export const useDialogState = () => {
     isUnsafeDialogOpen.value = false
   }
 
+  const openCurlDialog = () => {
+    isCurlDialogOpen.value = true
+  }
+
+  const closeCurlDialog = () => {
+    isCurlDialogOpen.value = false
+  }
+
   return {
     // State
     isServiceDialogOpen,
@@ -107,6 +116,9 @@ export const useDialogState = () => {
     openShareDialog,
     closeShareDialog,
     openUnsafeDialog,
-    closeUnsafeDialog
+    closeUnsafeDialog,
+    isCurlDialogOpen,
+    openCurlDialog,
+    closeCurlDialog
   }
 }

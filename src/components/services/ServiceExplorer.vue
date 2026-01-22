@@ -11,6 +11,7 @@ import {
   Folder,
   Globe,
   Download,
+  Terminal,
 } from "lucide-vue-next";
 import {
   Popover,
@@ -25,11 +26,16 @@ const emit = defineEmits<{
   (e: "select-endpoint", endpoint: any): void;
   (e: "select-service-settings", service: any): void;
   (e: "env-change", serviceId: string, env: string): void;
+  (e: "import-curl", service: any): void;
 }>();
 
 const servicesStore = useServicesStore();
-const { isServiceDialogOpen, isEndpointDialogOpen, isSwaggerDialogOpen } =
-  useDialogState();
+const {
+  isServiceDialogOpen,
+  isEndpointDialogOpen,
+  isSwaggerDialogOpen,
+  isCurlDialogOpen,
+} = useDialogState();
 
 const searchQuery = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -116,21 +122,11 @@ const handleImportService = async () => {
     <!-- Header / Search -->
     <div class="p-3 border-b flex items-center justify-between">
       <div class="relative flex-1 mr-2">
-        <Search
-          class="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground"
-        />
-        <input
-          ref="searchInput"
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search services... (Cmd+K)"
-          class="w-full bg-background border rounded-md py-1.5 pl-7 pr-8 focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-        <button
-          v-if="searchQuery"
-          @click="searchQuery = ''"
-          class="absolute right-2 top-2 p-0.5 hover:bg-muted rounded-sm transition-colors"
-        >
+        <Search class="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <input ref="searchInput" v-model="searchQuery" type="text" placeholder="Search services... (Cmd+K)"
+          class="w-full bg-background border rounded-md py-1.5 pl-7 pr-8 focus:outline-none focus:ring-1 focus:ring-primary" />
+        <button v-if="searchQuery" @click="searchQuery = ''"
+          class="absolute right-2 top-2 p-0.5 hover:bg-muted rounded-sm transition-colors">
           <X class="h-3 w-3 text-muted-foreground" />
         </button>
       </div>
@@ -138,28 +134,27 @@ const handleImportService = async () => {
       <div class="flex items-center gap-1">
         <Popover>
           <PopoverTrigger as-child>
-            <button
-              class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground"
-              title="Import options"
-            >
+            <button class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground"
+              title="Import options">
               <Download class="h-4 w-4" />
             </button>
           </PopoverTrigger>
           <PopoverContent class="w-48 p-1" align="start">
             <div class="flex flex-col">
-              <button
-                @click="handleImportService"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="handleImportService"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <Folder class="h-3.5 w-3.5 text-blue-500" />
                 <span>From Directory</span>
               </button>
-              <button
-                @click="isSwaggerDialogOpen = true"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="isSwaggerDialogOpen = true"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <Globe class="h-3.5 w-3.5 text-orange-500" />
                 <span>Swagger / OpenAPI</span>
+              </button>
+              <button @click="isCurlDialogOpen = true"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
+                <Terminal class="h-3.5 w-3.5 text-green-500" />
+                <span>cURL Command</span>
               </button>
             </div>
           </PopoverContent>
@@ -167,39 +162,29 @@ const handleImportService = async () => {
 
         <Popover>
           <PopoverTrigger as-child>
-            <button
-              class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground"
-            >
+            <button class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground">
               <Plus class="h-4 w-4" />
             </button>
           </PopoverTrigger>
           <PopoverContent class="w-48 p-1" align="end">
             <div class="flex flex-col">
-              <button
-                @click="isServiceDialogOpen = true"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="isServiceDialogOpen = true"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <Layers class="h-3.5 w-3.5 text-primary" />
                 <span>Add New Service</span>
               </button>
-              <button
-                @click="handleImportService"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="handleImportService"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <Download class="h-3.5 w-3.5 text-blue-500" />
                 <span>Import from Directory</span>
               </button>
-              <button
-                @click="isSwaggerDialogOpen = true"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="isSwaggerDialogOpen = true"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <Globe class="h-3.5 w-3.5 text-orange-500" />
                 <span>Import from Swagger</span>
               </button>
-              <button
-                @click="isEndpointDialogOpen = true"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors"
-              >
+              <button @click="isEndpointDialogOpen = true"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <PlusCircle class="h-3.5 w-3.5 text-green-500" />
                 <span>Add New Endpoint</span>
               </button>
@@ -211,12 +196,9 @@ const handleImportService = async () => {
 
     <!-- Tree -->
     <div class="flex-1 overflow-auto p-2">
-      <ServiceTree
-        :services="filteredServices"
-        @select-endpoint="emit('select-endpoint', $event)"
+      <ServiceTree :services="filteredServices" @select-endpoint="emit('select-endpoint', $event)"
         @select-service-settings="emit('select-service-settings', $event)"
-        @env-change="(id, env) => emit('env-change', id, env)"
-      />
+        @env-change="(id, env) => emit('env-change', id, env)" @import-curl="emit('import-curl', $event)" />
     </div>
   </div>
 </template>

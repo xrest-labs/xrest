@@ -53,3 +53,30 @@ paths:
     assert_eq!(endpoints[0].headers.len(), 1);
     assert_eq!(endpoints[0].headers[0].name, "X-Request-ID");
 }
+
+#[test]
+fn test_curl_to_endpoint_parsing() {
+    use crate::commands::curl_to_endpoint;
+
+    // Test simple GET
+    let curl = "curl https://api.example.com/users";
+    let endpoint = curl_to_endpoint("s1".to_string(), curl, false, None).unwrap();
+    assert_eq!(endpoint.method, "GET");
+    assert_eq!(endpoint.url, "https://api.example.com/users");
+    assert_eq!(endpoint.name, "users");
+
+    // Test POST with body and headers
+    let curl = r#"curl -X POST https://api.example.com/login -H "Content-Type: application/json" -d '{"user":"test"}'"#;
+    let endpoint =
+        curl_to_endpoint("s1".to_string(), curl, true, Some("bearer".to_string())).unwrap();
+    assert_eq!(endpoint.method, "POST");
+    assert_eq!(endpoint.url, "https://api.example.com/login");
+    assert_eq!(endpoint.name, "login");
+    assert_eq!(endpoint.body, r#"{"user":"test"}"#);
+    assert!(endpoint
+        .headers
+        .iter()
+        .any(|h| h.name == "content-type" && h.value == "application/json"));
+    assert_eq!(endpoint.authenticated, true);
+    assert_eq!(endpoint.auth_type, "bearer");
+}

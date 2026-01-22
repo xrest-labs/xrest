@@ -26,4 +26,8 @@ export class TauriServiceGateway implements IServiceGateway {
     async importService(directory: string): Promise<Service> {
         return invoke('import_service', { directory })
     }
+
+    async importCurl(serviceId: string, curlCommand: string): Promise<Service> {
+        return invoke('import_curl', { serviceId, curlCommand })
+    }
 }

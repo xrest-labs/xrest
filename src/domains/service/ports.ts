@@ -7,4 +7,5 @@ export interface IServiceGateway {
     initGit(directory: string, remoteUrl?: string): Promise<void>;
     syncGit(directory: string): Promise<void>;
     importService(directory: string): Promise<Service>;
+    importCurl(serviceId: string, curlCommand: string): Promise<Service>;
 }

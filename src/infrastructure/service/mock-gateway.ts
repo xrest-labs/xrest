@@ -53,4 +53,11 @@ export class MockServiceGateway implements IServiceGateway {
         this.saveServices(this.services)
         return service
     }
+
+    async importCurl(serviceId: string, curlCommand: string): Promise<Service> {
+        console.log('Mock import curl:', serviceId, curlCommand)
+        const service = this.services.find(s => s.id === serviceId)
+        if (!service) throw new Error('Service not found')
+        return service
+    }
 }

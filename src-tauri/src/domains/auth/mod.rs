@@ -19,6 +19,17 @@ pub enum AuthType {
     ApiKey,
 }
 
+impl std::fmt::Display for AuthType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuthType::None => write!(f, "none"),
+            AuthType::Basic => write!(f, "basic"),
+            AuthType::Bearer => write!(f, "bearer"),
+            AuthType::ApiKey => write!(f, "apikey"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthConfig {

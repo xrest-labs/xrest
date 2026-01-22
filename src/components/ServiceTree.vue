@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch } from "vue";
 import {
   ChevronRight,
   ChevronDown,
@@ -7,6 +7,7 @@ import {
   Settings,
   Check,
   ChevronDown as ChevronDownIcon,
+  Terminal,
 } from "lucide-vue-next";
 import { Service, Endpoint } from "@/types";
 import {
@@ -25,6 +26,7 @@ const emits = defineEmits<{
   (e: "select-service-settings", service: Service): void;
   (e: "env-change", serviceId: string, env: string): void;
   (e: "endpoint-context", event: MouseEvent, endpoint: Endpoint): void;
+  (e: "import-curl", service: Service): void;
 }>();
 
 const localServices = ref(props.services.map((s) => ({ ...s, isOpen: true })));
@@ -86,41 +88,27 @@ const isEnvUnsafe = (service: Service, envName: string) => {
 
 <template>
   <div class="space-y-1">
-    <div
-      v-for="(service, sIdx) in localServices"
-      :key="service.id"
-      class="select-none"
-    >
+    <div v-for="(service, sIdx) in localServices" :key="service.id" class="select-none">
       <!-- Service Header -->
-      <div
-        class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 group transition-colors"
-      >
-        <div
-          @click="toggleService(sIdx)"
-          class="flex items-center gap-1.5 flex-1 cursor-pointer overflow-hidden"
-        >
-          <component
-            :is="service.isOpen ? ChevronDown : ChevronRight"
-            class="h-3.5 w-3.5 text-muted-foreground shrink-0"
-          />
+      <div class="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 group transition-colors">
+        <div @click="toggleService(sIdx)" class="flex items-center gap-1.5 flex-1 cursor-pointer overflow-hidden">
+          <component :is="service.isOpen ? ChevronDown : ChevronRight"
+            class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <Layers class="h-3.5 w-3.5 text-primary/70 shrink-0" />
           <span class="font-semibold truncate">{{ service.name }}</span>
         </div>
 
         <Popover>
           <PopoverTrigger as-child>
-            <button
-              v-if="service.environments && service.environments.length > 0"
-              :class="[
-                'h-6 flex items-center gap-1.5 px-2 font-bold rounded border transition-all outline-none',
-                isEnvUnsafe(
-                  service,
-                  service.selectedEnvironment || service.environments[0].name,
-                )
-                  ? 'text-destructive bg-destructive/10 border-destructive/20 hover:bg-destructive/20 hover:border-destructive/30'
-                  : 'text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/5 border-transparent hover:border-primary/20',
-              ]"
-            >
+            <button v-if="service.environments && service.environments.length > 0" :class="[
+              'h-6 flex items-center gap-1.5 px-2 font-bold rounded border transition-all outline-none',
+              isEnvUnsafe(
+                service,
+                service.selectedEnvironment || service.environments[0].name,
+              )
+                ? 'text-destructive bg-destructive/10 border-destructive/20 hover:bg-destructive/20 hover:border-destructive/30'
+                : 'text-muted-foreground hover:text-primary bg-muted/30 hover:bg-primary/5 border-transparent hover:border-primary/20',
+            ]">
               <span class="truncate max-w-[50px]">{{
                 service.selectedEnvironment || service.environments[0].name
               }}</span>
@@ -129,10 +117,7 @@ const isEnvUnsafe = (service: Service, envName: string) => {
           </PopoverTrigger>
           <PopoverContent class="w-28 p-1" align="end">
             <div class="flex flex-col gap-0.5">
-              <button
-                v-for="env in getEnvironments(service)"
-                :key="env"
-                @click="handleEnvChange(service.id, env)"
+              <button v-for="env in getEnvironments(service)" :key="env" @click="handleEnvChange(service.id, env)"
                 :class="[
                   'flex items-center justify-between px-2 py-1.5 rounded-sm transition-colors',
                   (service.selectedEnvironment ||
@@ -143,53 +128,41 @@ const isEnvUnsafe = (service: Service, envName: string) => {
                     : isEnvUnsafe(service, env)
                       ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
                       : 'hover:bg-muted text-muted-foreground hover:text-foreground',
-                ]"
-              >
+                ]">
                 <span>{{ env }}</span>
-                <Check
-                  v-if="
-                    (service.selectedEnvironment ||
-                      service.environments[0].name) === env
-                  "
-                  class="h-3 w-3"
-                />
+                <Check v-if="
+                  (service.selectedEnvironment ||
+                    service.environments[0].name) === env
+                " class="h-3 w-3" />
               </button>
             </div>
           </PopoverContent>
         </Popover>
 
-        <button
-          @click="emits('select-service-settings', service)"
+        <button @click="emits('import-curl', service)"
           class="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-          title="Service Settings"
-        >
+          title="Import from cURL">
+          <Terminal class="h-3.5 w-3.5" />
+        </button>
+
+        <button @click="emits('select-service-settings', service)"
+          class="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+          title="Service Settings">
           <Settings class="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div
-        v-if="service.isOpen"
-        class="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-2"
-      >
-        <div
-          v-for="endpoint in service.endpoints"
-          :key="endpoint.id"
-          @click="emits('select-endpoint', endpoint)"
+      <div v-if="service.isOpen" class="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-2">
+        <div v-for="endpoint in service.endpoints" :key="endpoint.id" @click="emits('select-endpoint', endpoint)"
           @contextmenu.prevent="emits('endpoint-context', $event, endpoint)"
-          class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group transition-colors"
-        >
-          <div
-            :class="[
-              ' font-bold w-10 shrink-0 capitalize text-right',
-              getMethodColor(endpoint.method),
-            ]"
-          >
+          class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group transition-colors">
+          <div :class="[
+            ' font-bold w-10 shrink-0 capitalize text-right',
+            getMethodColor(endpoint.method),
+          ]">
             {{ endpoint.method }}
           </div>
-          <span
-            class="text-foreground/80 group-hover:text-foreground truncate"
-            >{{ endpoint.name }}</span
-          >
+          <span class="text-foreground/80 group-hover:text-foreground truncate">{{ endpoint.name }}</span>
         </div>
       </div>
     </div>

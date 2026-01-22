@@ -16,10 +16,8 @@ pub type Header = NameValue;
 
 pub use crate::domains::service::environment::EnvironmentConfig;
 
-pub use crate::domains::service::endpoint::{
-    Endpoint, EndpointMetadata, EndpointStub, EndpointVersion, PreflightConfig, RequestConfig,
-};
-pub use crate::domains::service::service::{Service, ServiceFile, ServiceStub};
+pub use crate::domains::service::endpoint::{Endpoint, EndpointMetadata, PreflightConfig};
+pub use crate::domains::service::service::{Service, ServiceStub};
 
 pub use crate::domains::git::GitStatus;
 

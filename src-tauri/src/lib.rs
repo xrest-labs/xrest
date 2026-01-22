@@ -38,7 +38,8 @@ pub fn run() {
             commands::git_sync,
             commands::get_history,
             commands::clear_history,
-            commands::import_swagger
+            commands::import_swagger,
+            commands::import_curl
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
