@@ -1,46 +1,72 @@
 <script setup lang="ts">
-import { AlertCircle } from 'lucide-vue-next'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { AlertCircle } from "lucide-vue-next";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 defineProps<{
-  open: boolean
-  environmentName: string
-  countdown: number
-}>()
+  open: boolean;
+  environmentName: string;
+  countdown: number;
+}>();
 
 const emit = defineEmits<{
-  (e: 'update:open', value: boolean): void
-  (e: 'proceed'): void
-  (e: 'cancel'): void
-}>()
+  (e: "update:open", value: boolean): void;
+  (e: "proceed"): void;
+  (e: "cancel"): void;
+}>();
 </script>
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[425px] border-destructive shadow-lg shadow-destructive/20 transition-all duration-300">
+    <DialogContent
+      class="sm:max-w-[425px] border-destructive shadow-lg shadow-destructive/20 transition-all duration-300"
+    >
       <DialogHeader>
         <div class="flex items-center gap-3 mb-2">
-          <div class="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+          <div
+            class="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center"
+          >
             <AlertCircle class="h-6 w-6 text-destructive animate-pulse" />
           </div>
-          <DialogTitle class="text-xl font-bold text-destructive">Unsafe Environment!</DialogTitle>
+          <DialogTitle class="text-xl font-bold text-destructive"
+            >Unsafe Environment!</DialogTitle
+          >
         </div>
-        <DialogDescription class="text-foreground/80 leading-relaxed font-medium">
-          You are about to execute a request against <span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-700 mx-1">{{ environmentName }}</span>. This environment is marked as unsafe.
+        <DialogDescription
+          class="text-foreground/80 leading-relaxed font-medium"
+        >
+          You are about to execute a request against
+          <span
+            class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-700 mx-1"
+            >{{ environmentName }}</span
+          >. This environment is marked as unsafe.
         </DialogDescription>
       </DialogHeader>
 
       <div class="py-6 flex flex-col items-center gap-4">
-        <p class="text-[13px] text-muted-foreground text-center">Are you sure you want to proceed with this action?</p>
+        <p class="text-muted-foreground text-center">
+          Are you sure you want to proceed with this action?
+        </p>
         <div class="h-1.5 w-full bg-muted rounded-full overflow-hidden">
           <div
             class="h-full bg-destructive transition-all duration-1000 ease-linear"
             :style="{ width: `${(countdown / 10) * 100}%` }"
           ></div>
         </div>
-        <p class="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/60 italic">
-          Request will be cancelled in <span class="text-destructive font-bold tabular-nums">{{ countdown }}s</span>
+        <p
+          class="uppercase font-bold tracking-widest text-muted-foreground/60 italic"
+        >
+          Request will be cancelled in
+          <span class="text-destructive font-bold tabular-nums"
+            >{{ countdown }}s</span
+          >
         </p>
       </div>
 

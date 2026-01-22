@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { useSettingsStore } from '@/stores/settings'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import { useSettingsStore } from "@/stores/settings";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
-const settingsStore = useSettingsStore()
+const settingsStore = useSettingsStore();
 </script>
 
 <template>
@@ -23,14 +29,14 @@ const settingsStore = useSettingsStore()
       <section class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div>
           <h2 class="text-lg font-semibold">Appearance</h2>
-          <p class="text-sm text-muted-foreground mt-1">
+          <p class="text-muted-foreground mt-1">
             Customize how xrest looks on your screen.
           </p>
         </div>
-        
+
         <div class="md:col-span-2 space-y-6">
           <div class="space-y-4">
-            <Label for="theme-select" class="text-sm font-medium">Theme</Label>
+            <Label for="theme-select" class="font-medium">Theme</Label>
             <Select v-model="settingsStore.mode">
               <SelectTrigger id="theme-select" class="w-[240px]">
                 <SelectValue placeholder="Select theme" />
@@ -38,7 +44,9 @@ const settingsStore = useSettingsStore()
               <SelectContent>
                 <SelectItem value="auto">
                   <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-linear-to-r from-white to-black border"></span>
+                    <span
+                      class="w-2 h-2 rounded-full bg-linear-to-r from-white to-black border"
+                    ></span>
                     System
                   </div>
                 </SelectItem>
@@ -56,8 +64,9 @@ const settingsStore = useSettingsStore()
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p class="text-xs text-muted-foreground">
-              Select between light and dark mode, or follow your system preference.
+            <p class="text-muted-foreground">
+              Select between light and dark mode, or follow your system
+              preference.
             </p>
           </div>
         </div>

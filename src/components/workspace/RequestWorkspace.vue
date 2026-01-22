@@ -1,340 +1,494 @@
 <script setup lang="ts">
-import { Plus, X, Settings2, Play } from 'lucide-vue-next'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Plus, X, Settings2, Play } from "lucide-vue-next";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Components
-import RequestUrlBar from '@/components/RequestUrlBar.vue'
-import RequestParameters from '@/components/RequestParameters.vue'
-import RequestAuth from '@/components/RequestAuth.vue'
-import RequestBody from '@/components/RequestBody.vue'
-import RequestHistory from '@/components/RequestHistory.vue'
-import ResponseViewer from '@/components/ResponseViewer.vue'
-import ServiceSettingsView from '@/components/ServiceSettingsView.vue'
+import RequestUrlBar from "@/components/RequestUrlBar.vue";
+import RequestParameters from "@/components/RequestParameters.vue";
+import RequestAuth from "@/components/RequestAuth.vue";
+import RequestBody from "@/components/RequestBody.vue";
+import RequestHistory from "@/components/RequestHistory.vue";
+import ResponseViewer from "@/components/ResponseViewer.vue";
+import ServiceSettingsView from "@/components/ServiceSettingsView.vue";
 
 // Composables & Utils
-import { useTabManager } from '@/composables/useTabManager'
-import { useEnvironmentVariables } from '@/composables/useEnvironmentVariables'
-import { useRequestExecution } from '@/composables/useRequestExecution'
-import { useDialogState } from '@/composables/useDialogState'
-import { toast } from 'vue-sonner'
-import { syncVariableValue, syncVariableName, removeVariable, addVariableToAll } from '@/lib/environment-utils'
+import { useTabManager } from "@/composables/useTabManager";
+import { useEnvironmentVariables } from "@/composables/useEnvironmentVariables";
+import { useRequestExecution } from "@/composables/useRequestExecution";
+import { useDialogState } from "@/composables/useDialogState";
+import { toast } from "vue-sonner";
+import {
+  syncVariableValue,
+  syncVariableName,
+  removeVariable,
+  addVariableToAll,
+} from "@/lib/environment-utils";
 
 const props = defineProps<{
-    modelValue: string // Active tab ID
-    items: any[] // Services or Collections
-    gitStatuses?: Record<string, any>
-    label?: string // 'Service' or 'Collection'
-}>()
+  modelValue: string; // Active tab ID
+  items: any[]; // Services or Collections
+  gitStatuses?: Record<string, any>;
+  label?: string; // 'Service' or 'Collection'
+}>();
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: string): void
-    (e: 'sync-git', serviceId: string, directory: string): void
-    (e: 'init-git', serviceId: string, directory: string, url?: string): void
-    (e: 'share-request', tab: any): void
-    (e: 'save-request', payload: { serviceIndex: number, updatedItem: any, tab: any }): void
-    (e: 'update-item', payload: { index: number, data: any, tab: any }): void
-    (e: 'delete-item', payload: { index: number, id: string, tabId: string }): void
-    (e: 'reload-items'): void
-}>()
+  (e: "update:modelValue", value: string): void;
+  (e: "sync-git", serviceId: string, directory: string): void;
+  (e: "init-git", serviceId: string, directory: string, url?: string): void;
+  (e: "share-request", tab: any): void;
+  (
+    e: "save-request",
+    payload: { serviceIndex: number; updatedItem: any; tab: any },
+  ): void;
+  (e: "update-item", payload: { index: number; data: any; tab: any }): void;
+  (
+    e: "delete-item",
+    payload: { index: number; id: string; tabId: string },
+  ): void;
+  (e: "reload-items"): void;
+}>();
 
 // Use tab manager but sync active tab with prop
 const {
-    tabs,
-    activeTab, // usage: we sync this with props.modelValue
-    addTab,
-    closeTab,
-    updateTabSnapshot
-} = useTabManager()
+  tabs,
+  activeTab, // usage: we sync this with props.modelValue
+  addTab,
+  closeTab,
+  updateTabSnapshot,
+} = useTabManager();
 
 // Sync props.modelValue with activeTab
-import { watch } from 'vue'
-watch(() => props.modelValue, (newVal) => {
-    activeTab.value = newVal
-})
+import { watch } from "vue";
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    activeTab.value = newVal;
+  },
+);
 watch(activeTab, (newVal) => {
-    emit('update:modelValue', newVal)
-})
+  emit("update:modelValue", newVal);
+});
 
-const {
-    activeEnvironments,
-    getTabVariables,
-    isUnsafeEnv,
-    getEnvName
-} = useEnvironmentVariables()
+const { activeEnvironments, getTabVariables, isUnsafeEnv, getEnvName } =
+  useEnvironmentVariables();
 
-const { isUnsafeDialogOpen } = useDialogState()
+const { isUnsafeDialogOpen } = useDialogState();
 
-const {
-    isSending,
-    handleSendRequest
-} = useRequestExecution(isUnsafeDialogOpen)
+const { isSending, handleSendRequest } =
+  useRequestExecution(isUnsafeDialogOpen);
 
 const handleSaveRequest = async (tab: any) => {
-    if (!tab.endpointId) {
-        toast.error('Cannot save: This tab is not linked to an endpoint')
-        return
+  if (!tab.endpointId) {
+    toast.error("Cannot save: This tab is not linked to an endpoint");
+    return;
+  }
+
+  // Find the service/collection and endpoint
+  let itemIndex = -1;
+  let endpointIndex = -1;
+
+  for (let i = 0; i < props.items.length; i++) {
+    const idx = props.items[i].endpoints.findIndex(
+      (e: any) => e.id === tab.endpointId,
+    );
+    if (idx !== -1) {
+      itemIndex = i;
+      endpointIndex = idx;
+      break;
     }
+  }
 
-    // Find the service/collection and endpoint
-    let itemIndex = -1
-    let endpointIndex = -1
+  if (itemIndex === -1 || endpointIndex === -1) {
+    toast.error("Endpoint not found");
+    return;
+  }
 
-    for (let i = 0; i < props.items.length; i++) {
-        const idx = props.items[i].endpoints.findIndex((e: any) => e.id === tab.endpointId)
-        if (idx !== -1) {
-            itemIndex = i
-            endpointIndex = idx
-            break
+  const item = props.items[itemIndex];
+  const endpoint = item.endpoints[endpointIndex];
+
+  // Update endpoint details
+  let newPath = tab.url;
+  if (item.environments.length > 0) {
+    for (const envGroup of item.environments) {
+      for (const variable of envGroup.variables) {
+        if (
+          variable.name === "BASE_URL" &&
+          variable.value &&
+          newPath.startsWith(variable.value)
+        ) {
+          newPath = newPath.replace(variable.value, "");
+          break;
         }
+      }
     }
+  }
+  if (
+    !newPath.startsWith("/") &&
+    !newPath.includes("://") &&
+    !newPath.startsWith("{{")
+  ) {
+    newPath = "/" + newPath;
+  }
 
-    if (itemIndex === -1 || endpointIndex === -1) {
-        toast.error('Endpoint not found')
-        return
-    }
+  // Consolidate preflight structure
+  const preflight = {
+    enabled: tab.preflight.enabled,
+    method: tab.preflight.method,
+    url: tab.preflight.url,
+    body: tab.preflight.body,
+    headers: tab.preflight.headers || [],
+    cacheToken: tab.preflight.cacheToken,
+    cacheDuration: tab.preflight.cacheDuration,
+    cacheDurationKey: tab.preflight.cacheDurationKey,
+    cacheDurationUnit: tab.preflight.cacheDurationUnit,
+    tokenKey: tab.preflight.tokenKey,
+    tokenHeader: tab.preflight.tokenHeader,
+  };
 
-    const item = props.items[itemIndex]
-    const endpoint = item.endpoints[endpointIndex]
+  const updatedEndpoint = {
+    ...endpoint,
+    method: tab.method,
+    url: newPath,
+    params: tab.params
+      .filter((p: any) => p.name)
+      .map((p: any) => ({
+        name: p.name,
+        value: p.value,
+        enabled: p.enabled ?? true,
+      })),
+    headers: tab.headers
+      .filter((h: any) => h.name)
+      .map((h: any) => ({
+        name: h.name,
+        value: h.value,
+        enabled: h.enabled ?? true,
+      })),
+    body: tab.body.content,
+    preflight: preflight,
+    metadata: {
+      ...endpoint.metadata,
+      lastUpdated: Date.now(),
+    },
+  };
 
-    // Update endpoint details
-    let newPath = tab.url
-    if (item.environments.length > 0) {
-        for (const envGroup of item.environments) {
-            for (const variable of envGroup.variables) {
-                if (variable.name === 'BASE_URL' && variable.value && newPath.startsWith(variable.value)) {
-                    newPath = newPath.replace(variable.value, '')
-                    break
-                }
-            }
-        }
-    }
-    if (!newPath.startsWith('/') && !newPath.includes('://') && !newPath.startsWith('{{')) {
-        newPath = '/' + newPath
-    }
+  const updatedItem = {
+    ...item,
+    endpoints: [...item.endpoints],
+  };
+  updatedItem.endpoints[endpointIndex] = updatedEndpoint;
 
-    // Consolidate preflight structure
-    const preflight = {
-        enabled: tab.preflight.enabled,
-        method: tab.preflight.method,
-        url: tab.preflight.url,
-        body: tab.preflight.body,
-        headers: tab.preflight.headers || [],
-        cacheToken: tab.preflight.cacheToken,
-        cacheDuration: tab.preflight.cacheDuration,
-        cacheDurationKey: tab.preflight.cacheDurationKey,
-        cacheDurationUnit: tab.preflight.cacheDurationUnit,
-        tokenKey: tab.preflight.tokenKey,
-        tokenHeader: tab.preflight.tokenHeader
-    }
+  // Emit save event to parent
+  emit("save-request", { serviceIndex: itemIndex, updatedItem, tab });
+  updateTabSnapshot(tab);
 
-    const updatedEndpoint = {
-        ...endpoint,
-        method: tab.method,
-        url: newPath,
-        params: tab.params.filter((p: any) => p.name).map((p: any) => ({ name: p.name, value: p.value, enabled: p.enabled ?? true })),
-        headers: tab.headers.filter((h: any) => h.name).map((h: any) => ({ name: h.name, value: h.value, enabled: h.enabled ?? true })),
-        body: tab.body.content,
-        preflight: preflight,
-        metadata: {
-            ...endpoint.metadata,
-            lastUpdated: Date.now()
-        }
-    }
-
-    const updatedItem = {
-        ...item,
-        endpoints: [...item.endpoints]
-    }
-    updatedItem.endpoints[endpointIndex] = updatedEndpoint
-
-    // Emit save event to parent
-    emit('save-request', { serviceIndex: itemIndex, updatedItem, tab })
-    updateTabSnapshot(tab)
-
-    // Check if versions updated (handled by parent update, but we need to refresh tab versions from result? 
-    // Usually local state update is reactive if props.items updates)
-}
+  // Check if versions updated (handled by parent update, but we need to refresh tab versions from result?
+  // Usually local state update is reactive if props.items updates)
+};
 
 const restoreVersion = (tab: any, version: any) => {
-    tab.method = version.config.method
-    tab.url = version.config.url
-    tab.auth.type = version.config.authType
-    tab.params = version.config.params.map((p: any) => ({ ...p, enabled: true }))
-    tab.headers = version.config.headers.map((h: any) => ({ ...h, enabled: true }))
-    tab.body.content = version.config.body
-    tab.preflight = JSON.parse(JSON.stringify(version.config.preflight))
+  tab.method = version.config.method;
+  tab.url = version.config.url;
+  tab.auth.type = version.config.authType;
+  tab.params = version.config.params.map((p: any) => ({ ...p, enabled: true }));
+  tab.headers = version.config.headers.map((h: any) => ({
+    ...h,
+    enabled: true,
+  }));
+  tab.body.content = version.config.body;
+  tab.preflight = JSON.parse(JSON.stringify(version.config.preflight));
 
-    toast.success(`Restored to version ${version.version}`)
-}
+  toast.success(`Restored to version ${version.version}`);
+};
 
 // Settings Handlers
 const handleUpdateSettings = (tab: any) => {
-    const index = props.items.findIndex(s => s.id === tab.serviceId)
-    if (index !== -1) {
-        emit('update-item', { index, data: tab.serviceData, tab })
-    }
-}
+  const index = props.items.findIndex((s) => s.id === tab.serviceId);
+  if (index !== -1) {
+    emit("update-item", { index, data: tab.serviceData, tab });
+  }
+};
 
 const handleDeleteItem = async (itemId: string, tabId: string) => {
-    const index = props.items.findIndex(s => s.id === itemId)
-    if (index !== -1) {
-        // Using native confirm for now or import ask
-        const { ask } = await import('@tauri-apps/plugin-dialog')
-        const confirmation = await ask(
-            `Are you sure you want to delete "${props.items[index].name}"?`,
-            { title: 'Confirm Deletion', kind: 'warning' }
-        )
+  const index = props.items.findIndex((s) => s.id === itemId);
+  if (index !== -1) {
+    // Using native confirm for now or import ask
+    const { ask } = await import("@tauri-apps/plugin-dialog");
+    const confirmation = await ask(
+      `Are you sure you want to delete "${props.items[index].name}"?`,
+      { title: "Confirm Deletion", kind: "warning" },
+    );
 
-        if (confirmation) {
-            emit('delete-item', { index, id: itemId, tabId })
-        }
+    if (confirmation) {
+      emit("delete-item", { index, id: itemId, tabId });
     }
-}
+  }
+};
 </script>
 
 <template>
-    <div class="flex flex-col h-full bg-background">
-        <Tabs v-model="activeTab" class="flex-1 flex flex-col overflow-hidden">
-            <div class="flex items-center border-b bg-muted/20 px-2 pt-1 gap-1">
-                <TabsList class="h-9 bg-transparent p-0 gap-px">
-                    <div v-for="tab in tabs" :key="tab.id" class="group relative flex items-center">
-                        <TabsTrigger :value="tab.id" :class="[
-                            'h-8 px-3 rounded-t-md rounded-b-none border-b-0 data-[state=active]:bg-background data-[state=active]:border data-[state=active]:border-b-background -mb-px text-xs gap-2 relative overflow-hidden',
-                            isUnsafeEnv(tab) ? 'bg-destructive/5' : ''
-                        ]">
-                            <div v-if="isUnsafeEnv(tab)"
-                                class="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]">
-                            </div>
-                            <template v-if="tab.type === 'settings'">
-                                <Settings2 class="h-3 w-3 text-primary/70" />
-                            </template>
-                            <template v-else>
-                                <span :class="[
-                                    'font-bold text-[10px]',
-                                    tab.method === 'GET' ? 'text-green-600' :
-                                        tab.method === 'POST' ? 'text-orange-600' :
-                                            tab.method === 'PUT' ? 'text-blue-600' : 'text-red-600'
-                                ]">{{ tab.method || 'GET' }}</span>
-                            </template>
-                            <span class="max-w-[120px] truncate">{{ tab.title }}</span>
-                            <div v-if="tab.isEdited" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0">
-                            </div>
-                            <button @click.stop="closeTab(tab.id)"
-                                class="ml-1 p-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                                <X class="h-3 w-3" />
-                            </button>
-                        </TabsTrigger>
-                    </div>
-                </TabsList>
-                <button @click="addTab()"
-                    class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground mb-1">
-                    <Plus class="h-4 w-4" />
-                </button>
-            </div>
+  <div class="flex flex-col h-full bg-background">
+    <Tabs v-model="activeTab" class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex items-center border-b bg-muted/20 px-2 pt-1 gap-1">
+        <TabsList class="h-9 bg-transparent p-0 gap-px">
+          <div
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="group relative flex items-center"
+          >
+            <TabsTrigger
+              :value="tab.id"
+              :class="[
+                'h-8 px-3 rounded-t-md rounded-b-none border-b-0 data-[state=active]:bg-background data-[state=active]:border data-[state=active]:border-b-background -mb-px gap-2 relative overflow-hidden',
+                isUnsafeEnv(tab) ? 'bg-destructive/5' : '',
+              ]"
+            >
+              <div
+                v-if="isUnsafeEnv(tab)"
+                class="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+              ></div>
+              <template v-if="tab.type === 'settings'">
+                <Settings2 class="h-3 w-3 text-primary/70" />
+              </template>
+              <template v-else>
+                <span
+                  :class="[
+                    'font-bold ',
+                    tab.method === 'GET'
+                      ? 'text-green-600'
+                      : tab.method === 'POST'
+                        ? 'text-orange-600'
+                        : tab.method === 'PUT'
+                          ? 'text-blue-600'
+                          : 'text-red-600',
+                  ]"
+                  >{{ tab.method || "GET" }}</span
+                >
+              </template>
+              <span class="max-w-[120px] truncate">{{ tab.title }}</span>
+              <div
+                v-if="tab.isEdited"
+                class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0"
+              ></div>
+              <button
+                @click.stop="closeTab(tab.id)"
+                class="ml-1 p-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X class="h-3 w-3" />
+              </button>
+            </TabsTrigger>
+          </div>
+        </TabsList>
+        <button
+          @click="addTab()"
+          class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground mb-1"
+        >
+          <Plus class="h-4 w-4" />
+        </button>
+      </div>
 
-            <div class="flex-1 overflow-hidden">
-                <TabsContent v-for="tab in (tabs as any)" :key="tab.id" :value="tab.id"
-                    class="h-full mt-0 focus-visible:ring-0">
-                    <!-- Request View -->
-                    <ResizablePanelGroup v-if="tab.type !== 'settings'" direction="vertical">
-                        <ResizablePanel :default-size="50" :min-size="20">
-                            <div class="h-full p-4 overflow-auto">
-                                <!-- URL Bar component -->
-                                <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
-                                    :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)"
-                                    :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''"
-                                    @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)"
-                                    @share="emit('share-request', tab)" />
+      <div class="flex-1 overflow-hidden">
+        <TabsContent
+          v-for="tab in tabs as any"
+          :key="tab.id"
+          :value="tab.id"
+          class="h-full mt-0 focus-visible:ring-0"
+        >
+          <!-- Request View -->
+          <ResizablePanelGroup
+            v-if="tab.type !== 'settings'"
+            direction="vertical"
+          >
+            <ResizablePanel :default-size="50" :min-size="20">
+              <div class="h-full p-4 overflow-auto">
+                <!-- URL Bar component -->
+                <RequestUrlBar
+                  v-model:method="tab.method"
+                  v-model:url="tab.url"
+                  :is-sending="isSending"
+                  :is-unsafe="isUnsafeEnv(tab)"
+                  :variables="getTabVariables(tab)"
+                  :environment-name="
+                    tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                  "
+                  @send="handleSendRequest(tab)"
+                  @save="handleSaveRequest(tab)"
+                  @share="emit('share-request', tab)"
+                />
 
-                                <div class="flex gap-4 border-b pb-0 mb-4 text-xs font-medium text-muted-foreground">
-                                    <button @click="tab.activeSubTab = 'params'"
-                                        :class="['pb-2 -mb-px px-1 transition-colors relative', tab.activeSubTab === 'params' ? 'text-primary' : 'hover:text-foreground']">
-                                        Params
-                                        <div v-if="tab.activeSubTab === 'params'"
-                                            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full">
-                                        </div>
-                                    </button>
-                                    <button @click="tab.activeSubTab = 'auth'"
-                                        :class="['pb-2 -mb-px px-1 transition-colors relative', tab.activeSubTab === 'auth' ? 'text-primary' : 'hover:text-foreground']">
-                                        Authorization
-                                        <div v-if="tab.activeSubTab === 'auth'"
-                                            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full">
-                                        </div>
-                                    </button>
-                                    <button @click="tab.activeSubTab = 'headers'"
-                                        :class="['pb-2 -mb-px px-1 transition-colors relative', tab.activeSubTab === 'headers' ? 'text-primary' : 'hover:text-foreground']">
-                                        Headers
-                                        <div v-if="tab.activeSubTab === 'headers'"
-                                            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full">
-                                        </div>
-                                    </button>
-                                    <button @click="tab.activeSubTab = 'body'"
-                                        :class="['pb-2 -mb-px px-1 transition-colors relative', tab.activeSubTab === 'body' ? 'text-primary' : 'hover:text-foreground']">
-                                        Body
-                                        <div v-if="tab.activeSubTab === 'body'"
-                                            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full">
-                                        </div>
-                                    </button>
-                                    <button @click="tab.activeSubTab = 'versions'"
-                                        :class="['pb-2 -mb-px px-1 transition-colors relative', tab.activeSubTab === 'versions' ? 'text-primary' : 'hover:text-foreground']">
-                                        Versions
-                                        <div v-if="tab.activeSubTab === 'versions'"
-                                            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full">
-                                        </div>
-                                    </button>
-                                </div>
+                <div
+                  class="flex gap-4 border-b pb-0 mb-4 font-medium text-muted-foreground"
+                >
+                  <button
+                    @click="tab.activeSubTab = 'params'"
+                    :class="[
+                      'pb-2 -mb-px px-1 transition-colors relative',
+                      tab.activeSubTab === 'params'
+                        ? 'text-primary'
+                        : 'hover:text-foreground',
+                    ]"
+                  >
+                    Params
+                    <div
+                      v-if="tab.activeSubTab === 'params'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                    ></div>
+                  </button>
+                  <button
+                    @click="tab.activeSubTab = 'auth'"
+                    :class="[
+                      'pb-2 -mb-px px-1 transition-colors relative',
+                      tab.activeSubTab === 'auth'
+                        ? 'text-primary'
+                        : 'hover:text-foreground',
+                    ]"
+                  >
+                    Authorization
+                    <div
+                      v-if="tab.activeSubTab === 'auth'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                    ></div>
+                  </button>
+                  <button
+                    @click="tab.activeSubTab = 'headers'"
+                    :class="[
+                      'pb-2 -mb-px px-1 transition-colors relative',
+                      tab.activeSubTab === 'headers'
+                        ? 'text-primary'
+                        : 'hover:text-foreground',
+                    ]"
+                  >
+                    Headers
+                    <div
+                      v-if="tab.activeSubTab === 'headers'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                    ></div>
+                  </button>
+                  <button
+                    @click="tab.activeSubTab = 'body'"
+                    :class="[
+                      'pb-2 -mb-px px-1 transition-colors relative',
+                      tab.activeSubTab === 'body'
+                        ? 'text-primary'
+                        : 'hover:text-foreground',
+                    ]"
+                  >
+                    Body
+                    <div
+                      v-if="tab.activeSubTab === 'body'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                    ></div>
+                  </button>
+                  <button
+                    @click="tab.activeSubTab = 'versions'"
+                    :class="[
+                      'pb-2 -mb-px px-1 transition-colors relative',
+                      tab.activeSubTab === 'versions'
+                        ? 'text-primary'
+                        : 'hover:text-foreground',
+                    ]"
+                  >
+                    Versions
+                    <div
+                      v-if="tab.activeSubTab === 'versions'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
+                    ></div>
+                  </button>
+                </div>
 
-                                <!-- Sub-tabs Content -->
-                                <div class="min-h-[200px]">
-                                    <!-- Params and Headers Table -->
-                                    <RequestParameters v-if="tab.activeSubTab === 'params'" v-model:items="tab.params"
-                                        title="Query Parameters" :variables="getTabVariables(tab)"
-                                        :environment-name="getEnvName(tab)" />
-                                    <RequestParameters v-else-if="tab.activeSubTab === 'headers'"
-                                        v-model:items="tab.headers" title="Request Headers"
-                                        :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                <!-- Sub-tabs Content -->
+                <div class="min-h-[200px]">
+                  <!-- Params and Headers Table -->
+                  <RequestParameters
+                    v-if="tab.activeSubTab === 'params'"
+                    v-model:items="tab.params"
+                    title="Query Parameters"
+                    :variables="getTabVariables(tab)"
+                    :environment-name="getEnvName(tab)"
+                  />
+                  <RequestParameters
+                    v-else-if="tab.activeSubTab === 'headers'"
+                    v-model:items="tab.headers"
+                    title="Request Headers"
+                    :variables="getTabVariables(tab)"
+                    :environment-name="getEnvName(tab)"
+                  />
 
-                                    <RequestAuth v-else-if="tab.activeSubTab === 'auth'" v-model:auth="tab.auth"
-                                        v-model:preflight="tab.preflight" :variables="getTabVariables(tab)"
-                                        :environment-name="getEnvName(tab)" />
+                  <RequestAuth
+                    v-else-if="tab.activeSubTab === 'auth'"
+                    v-model:auth="tab.auth"
+                    v-model:preflight="tab.preflight"
+                    :variables="getTabVariables(tab)"
+                    :environment-name="getEnvName(tab)"
+                  />
 
-                                    <RequestBody v-else-if="tab.activeSubTab === 'body'" v-model:body="tab.body"
-                                        :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                  <RequestBody
+                    v-else-if="tab.activeSubTab === 'body'"
+                    v-model:body="tab.body"
+                    :variables="getTabVariables(tab)"
+                    :environment-name="getEnvName(tab)"
+                  />
 
-                                    <RequestHistory v-else-if="tab.activeSubTab === 'versions'"
-                                        :versions="tab.versions || []" @restore="(v) => restoreVersion(tab, v)" />
-                                </div>
-                            </div>
-                        </ResizablePanel>
+                  <RequestHistory
+                    v-else-if="tab.activeSubTab === 'versions'"
+                    :versions="tab.versions || []"
+                    @restore="(v) => restoreVersion(tab, v)"
+                  />
+                </div>
+              </div>
+            </ResizablePanel>
 
-                        <ResizableHandle with-handle />
+            <ResizableHandle with-handle />
 
-                        <ResizablePanel :default-size="50" :min-size="20">
-                            <ResponseViewer v-if="tab.response" :response="tab.response" :url="tab.url"
-                                :variables="getTabVariables(tab)"
-                                :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''" />
-                            <div v-else
-                                class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5">
-                                <div class="p-4 rounded-full bg-muted/20 border border-dashed border-muted">
-                                    <Play class="h-8 w-8 opacity-20" />
-                                </div>
-                                <p class="text-[11px] font-medium tracking-tight">Send a request to see the response</p>
-                            </div>
-                        </ResizablePanel>
-                    </ResizablePanelGroup>
+            <ResizablePanel :default-size="50" :min-size="20">
+              <ResponseViewer
+                v-if="tab.response"
+                :response="tab.response"
+                :url="tab.url"
+                :variables="getTabVariables(tab)"
+                :environment-name="
+                  tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                "
+              />
+              <div
+                v-else
+                class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5"
+              >
+                <div
+                  class="p-4 rounded-full bg-muted/20 border border-dashed border-muted"
+                >
+                  <Play class="h-8 w-8 opacity-20" />
+                </div>
+                <p class="font-medium tracking-tight">
+                  Send a request to see the response
+                </p>
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
 
-                    <!-- Service Settings View -->
-                    <ServiceSettingsView v-else :tab="tab"
-                        :git-status="props.gitStatuses ? props.gitStatuses[tab.serviceId] : undefined"
-                        @save="handleUpdateSettings" @delete="(id) => handleDeleteItem(id, tab.id)"
-                        @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
-                        @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)"
-                        @reload="emit('reload-items')" @add-variable="addVariableToAll"
-                        @remove-variable="removeVariable" @sync-variable-name="syncVariableName"
-                        @sync-variable-value="syncVariableValue" />
-                </TabsContent>
-            </div>
-        </Tabs>
-    </div>
+          <!-- Service Settings View -->
+          <ServiceSettingsView
+            v-else
+            :tab="tab"
+            :git-status="
+              props.gitStatuses ? props.gitStatuses[tab.serviceId] : undefined
+            "
+            @save="handleUpdateSettings"
+            @delete="(id) => handleDeleteItem(id, tab.id)"
+            @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
+            @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)"
+            @reload="emit('reload-items')"
+            @add-variable="addVariableToAll"
+            @remove-variable="removeVariable"
+            @sync-variable-name="syncVariableName"
+            @sync-variable-value="syncVariableValue"
+          />
+        </TabsContent>
+      </div>
+    </Tabs>
+  </div>
 </template>
