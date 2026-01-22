@@ -45,7 +45,7 @@ const navItems = [
 </script>
 
 <template>
-  <Sidebar collapsible="icon">
+  <Sidebar side="right" collapsible="icon">
     <SidebarHeader class="m-8">
 
     </SidebarHeader>
