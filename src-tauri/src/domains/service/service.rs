@@ -1,6 +1,6 @@
-use super::endpoint::{Endpoint, EndpointStub, EndpointVersion, RequestConfig};
+use super::endpoint::{Endpoint, EndpointStub, EndpointVersion, PreflightConfig, RequestConfig};
 use super::environment::EnvironmentConfig;
-use crate::domains::auth::AuthType;
+use crate::domains::auth::{AuthConfig, AuthType};
 use crate::io::FileSystem;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -15,10 +15,45 @@ pub struct Service {
     pub environments: Vec<EnvironmentConfig>,
     pub is_authenticated: bool,
     pub auth_type: Option<AuthType>,
+    #[serde(default = "default_auth")]
+    pub auth: AuthConfig,
+    #[serde(default = "default_preflight")]
+    pub preflight: PreflightConfig,
     pub endpoints: Vec<Endpoint>,
     pub directory: String,
     pub selected_environment: Option<String>,
     pub git_url: Option<String>,
+}
+
+fn default_auth() -> AuthConfig {
+    AuthConfig {
+        r#type: "none".to_string(),
+        active: true,
+        basic_user: "".to_string(),
+        basic_pass: "".to_string(),
+        bearer_token: "".to_string(),
+        api_key_name: "".to_string(),
+        api_key_value: "".to_string(),
+        api_key_location: "header".to_string(),
+    }
+}
+
+fn default_preflight() -> PreflightConfig {
+    PreflightConfig {
+        enabled: false,
+        method: "POST".to_string(),
+        url: "".to_string(),
+        body: "".to_string(),
+        body_type: "application/json".to_string(),
+        body_params: vec![],
+        headers: vec![],
+        cache_token: true,
+        cache_duration: "".to_string(),
+        cache_duration_key: "".to_string(),
+        cache_duration_unit: "seconds".to_string(),
+        token_key: "".to_string(),
+        token_header: None,
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,6 +63,10 @@ pub struct ServiceFile {
     pub name: String,
     pub is_authenticated: bool,
     pub auth_type: Option<AuthType>,
+    #[serde(default = "default_auth")]
+    pub auth: AuthConfig,
+    #[serde(default = "default_preflight")]
+    pub preflight: PreflightConfig,
     pub endpoints: Vec<EndpointStub>,
     pub directory: String,
     pub selected_environment: Option<String>,
@@ -121,6 +160,8 @@ impl<'a> ServiceDomain<'a> {
             environments,
             is_authenticated: service_file.is_authenticated,
             auth_type: service_file.auth_type,
+            auth: service_file.auth,
+            preflight: service_file.preflight,
             endpoints,
             directory: service_file.directory,
             selected_environment: service_file.selected_environment,
@@ -208,6 +249,8 @@ impl<'a> ServiceDomain<'a> {
             name: service.name.clone(),
             is_authenticated: service.is_authenticated,
             auth_type: service.auth_type.clone(),
+            auth: service.auth.clone(),
+            preflight: service.preflight.clone(),
             endpoints: endpoint_stubs,
             directory: service.directory.clone(),
             selected_environment: service.selected_environment.clone(),

@@ -1,5 +1,6 @@
 use crate::domains::service::endpoint::PreflightConfig;
 use crate::io::HttpClient;
+use crate::types::{Header, PreflightTestResult};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,6 +11,21 @@ pub async fn execute_preflight(
     variables: &HashMap<String, String>,
     cache_path: Option<&std::path::PathBuf>,
 ) -> Result<String, String> {
+    let result = test_preflight(http, service_id, config, variables, cache_path).await;
+    if result.success {
+        Ok(result.token.unwrap_or_default())
+    } else {
+        Err(result.error.unwrap_or_else(|| "Unknown error".to_string()))
+    }
+}
+
+pub async fn test_preflight(
+    http: &dyn HttpClient,
+    service_id: &str,
+    config: &PreflightConfig,
+    variables: &HashMap<String, String>,
+    cache_path: Option<&std::path::PathBuf>,
+) -> PreflightTestResult {
     let resolved_url = resolve_variables(&config.url, variables);
     let mut resolved_body = resolve_variables(&config.body, variables);
 
@@ -31,11 +47,17 @@ pub async fn execute_preflight(
         }
     }
     let mut resolved_headers = Vec::new();
+    let mut request_headers_vec = Vec::new();
     for h in &config.headers {
-        resolved_headers.push((
-            resolve_variables(&h.name, variables),
-            resolve_variables(&h.value, variables),
-        ));
+        let name = resolve_variables(&h.name, variables);
+        let value = resolve_variables(&h.value, variables);
+        resolved_headers.push((name.clone(), value.clone()));
+        request_headers_vec.push(Header {
+            name,
+            value,
+            enabled: true,
+            secret_key: None,
+        });
     }
 
     let cache_key = super::cache::generate_key(
@@ -50,7 +72,19 @@ pub async fn execute_preflight(
     if config.cache_token {
         if let Some(cached) = super::cache::get_cached_token(&cache_key) {
             if super::cache::is_token_valid(&cached) {
-                return Ok(cached.token);
+                return PreflightTestResult {
+                    success: true,
+                    token: Some(cached.token),
+                    error: None,
+                    request_url: resolved_url,
+                    request_method: config.method.clone(),
+                    request_headers: request_headers_vec,
+                    request_body: resolved_body,
+                    response_status: 200,
+                    response_body: "Token served from cache".to_string(),
+                    response_headers: vec![],
+                    time_elapsed: 0,
+                };
             }
         }
     }
@@ -60,9 +94,15 @@ pub async fn execute_preflight(
         && config.method.to_uppercase() != "HEAD"
     {
         resolved_headers.push(("Content-Type".to_string(), config.body_type.clone()));
+        request_headers_vec.push(Header {
+            name: "Content-Type".to_string(),
+            value: config.body_type.clone(),
+            enabled: true,
+            secret_key: None,
+        });
     }
 
-    let response = http
+    let response_result = http
         .send_request(
             &config.method,
             &resolved_url,
@@ -70,57 +110,125 @@ pub async fn execute_preflight(
             if resolved_body.is_empty() {
                 None
             } else {
-                Some(resolved_body)
+                Some(resolved_body.clone())
             },
             vec![],
         )
-        .await?;
+        .await;
 
-    let response_json: serde_json::Value = serde_json::from_str(&response.body)
-        .map_err(|e| format!("Preflight response is not valid JSON: {}", e))?;
+    match response_result {
+        Ok(response) => {
+            let response_headers_vec: Vec<Header> = response
+                .headers
+                .iter()
+                .map(|h| Header {
+                    name: h.name.clone(),
+                    value: h.value.clone(),
+                    enabled: true,
+                    secret_key: None,
+                })
+                .collect();
 
-    let token = response_json
-        .get(&config.token_key)
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| {
-            format!(
-                "Token key '{}' not found in preflight response",
-                config.token_key
-            )
-        })?
-        .to_string();
+            let response_json_result: Result<serde_json::Value, _> =
+                serde_json::from_str(&response.body);
 
-    if config.cache_token {
-        let expires_in_seconds = if config.cache_duration == "derived" {
-            let duration_value = response_json
-                .get(&config.cache_duration_key)
-                .and_then(|v| v.as_u64())
-                .ok_or_else(|| format!("Duration key '{}' not found", config.cache_duration_key))?;
+            let token_result = match response_json_result {
+                Ok(response_json) => {
+                    let token_opt = response_json
+                        .get(&config.token_key)
+                        .and_then(|v| v.as_str())
+                        .map(|t| t.to_string());
 
-            match config.cache_duration_unit.as_str() {
-                "seconds" => duration_value,
-                "minutes" => duration_value * 60,
-                "hours" => duration_value * 3600,
-                "days" => duration_value * 86400,
-                _ => duration_value,
+                    match token_opt {
+                        Some(token) => Ok((token, response_json)),
+                        None => Err(format!(
+                            "Token key '{}' not found in preflight response",
+                            config.token_key
+                        )),
+                    }
+                }
+                Err(e) => Err(format!("Preflight response is not valid JSON: {}", e)),
+            };
+
+            match token_result {
+                Ok((token, response_json)) => {
+                    // Update cache
+                    if config.cache_token {
+                        let expires_in_seconds = if config.cache_duration == "derived" {
+                            let duration_value = response_json
+                                .get(&config.cache_duration_key)
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(3600); // Default if key missing to avoid testing failure? Or fail? Logic in execute was strict
+
+                            match config.cache_duration_unit.as_str() {
+                                "seconds" => duration_value,
+                                "minutes" => duration_value * 60,
+                                "hours" => duration_value * 3600,
+                                "days" => duration_value * 86400,
+                                _ => duration_value,
+                            }
+                        } else {
+                            config.cache_duration.parse::<u64>().unwrap_or(3600)
+                        };
+
+                        let now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        super::cache::set_cached_token(
+                            cache_key,
+                            token.clone(),
+                            now + expires_in_seconds,
+                        );
+
+                        if let Some(path) = cache_path {
+                            let _ = super::cache::save_cache_to_file(path);
+                        }
+                    }
+
+                    PreflightTestResult {
+                        success: true,
+                        token: Some(token),
+                        error: None,
+                        request_url: resolved_url,
+                        request_method: config.method.clone(),
+                        request_headers: request_headers_vec,
+                        request_body: resolved_body,
+                        response_status: response.status,
+                        response_body: response.body,
+                        response_headers: response_headers_vec,
+                        time_elapsed: response.time_elapsed,
+                    }
+                }
+                Err(e) => PreflightTestResult {
+                    success: false,
+                    token: None,
+                    error: Some(e),
+                    request_url: resolved_url,
+                    request_method: config.method.clone(),
+                    request_headers: request_headers_vec,
+                    request_body: resolved_body,
+                    response_status: response.status,
+                    response_body: response.body,
+                    response_headers: response_headers_vec,
+                    time_elapsed: response.time_elapsed,
+                },
             }
-        } else {
-            config.cache_duration.parse::<u64>().unwrap_or(3600)
-        };
-
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        super::cache::set_cached_token(cache_key, token.clone(), now + expires_in_seconds);
-
-        // Save the cache to disk if a path is provided
-        if let Some(path) = cache_path {
-            let _ = super::cache::save_cache_to_file(path);
         }
+        Err(e) => PreflightTestResult {
+            success: false,
+            token: None,
+            error: Some(e),
+            request_url: resolved_url,
+            request_method: config.method.clone(),
+            request_headers: request_headers_vec,
+            request_body: resolved_body,
+            response_status: 0,
+            response_body: "".to_string(),
+            response_headers: vec![],
+            time_elapsed: 0,
+        },
     }
-
-    Ok(token)
 }
 
 fn resolve_variables(text: &str, variables: &HashMap<String, String>) -> String {

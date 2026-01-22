@@ -1,7 +1,7 @@
 use crate::io::{RealFileSystem, RealHttpClient};
 use crate::services::{ConfigService, RequestService};
 use crate::types::{
-    AuthType, Endpoint, EndpointMetadata, EnvironmentConfig, HistoryEntry, NameValue,
+    AuthConfig, AuthType, Endpoint, EndpointMetadata, EnvironmentConfig, HistoryEntry, NameValue,
     PreflightConfig, QResponse, RequestTab, Service, UserSettings,
 };
 use openapiv3::OpenAPI;
@@ -97,7 +97,30 @@ pub fn save_tab_state(app: AppHandle, state: crate::types::TabState) -> Result<(
 }
 
 #[tauri::command]
-pub async fn send_request(app: AppHandle, tab: RequestTab) -> Result<QResponse, String> {
+pub async fn send_request(app: AppHandle, mut tab: RequestTab) -> Result<QResponse, String> {
+    if let Some(sid) = &tab.service_id {
+        let app_handle = app.clone();
+        let sid_clone = sid.clone();
+
+        let service_config = tokio::task::spawn_blocking(move || {
+            let config = ConfigService::new(&RealFileSystem);
+            let settings = config.load_settings(&app_handle).ok()?;
+            let stub = settings.services.iter().find(|s| s.id == sid_clone)?;
+            config.load_service(&stub.directory).ok()
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
+        if let Some(service) = service_config {
+            if tab.auth.r#type == "none" {
+                tab.auth = service.auth;
+            }
+            if !tab.preflight.enabled {
+                tab.preflight = service.preflight;
+            }
+        }
+    }
+
     let cache_path = crate::domains::auth::get_token_cache_path(&app).ok();
     let request_service = RequestService::new(&RealHttpClient, cache_path);
     let req_method = tab.method.clone();
@@ -273,6 +296,31 @@ pub async fn import_swagger(
         ],
         is_authenticated: false,
         auth_type: Some(AuthType::None),
+        auth: AuthConfig {
+            r#type: "none".to_string(),
+            active: true,
+            basic_user: "".to_string(),
+            basic_pass: "".to_string(),
+            bearer_token: "".to_string(),
+            api_key_name: "".to_string(),
+            api_key_value: "".to_string(),
+            api_key_location: "header".to_string(),
+        },
+        preflight: PreflightConfig {
+            enabled: false,
+            method: "POST".to_string(),
+            url: "".to_string(),
+            body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
+            headers: vec![],
+            cache_token: true,
+            cache_duration: "".to_string(),
+            cache_duration_key: "".to_string(),
+            cache_duration_unit: "seconds".to_string(),
+            token_key: "".to_string(),
+            token_header: None,
+        },
         endpoints,
         directory: directory.clone(),
         selected_environment: Some("DEV".to_string()),
@@ -616,6 +664,28 @@ pub fn parse_spec_content(
     }
 
     Ok((base_url, endpoints))
+}
+
+#[tauri::command]
+pub async fn test_preflight_config(
+    app: AppHandle,
+    service_id: String,
+    config: PreflightConfig,
+    variables: std::collections::HashMap<String, String>,
+) -> Result<crate::types::PreflightTestResult, String> {
+    let cache_path = crate::domains::auth::get_token_cache_path(&app).ok();
+
+    // We use the same simple resolution as the actual preflight logic for now to match behavior
+    // In the future we should unify secret resolution across the board
+
+    Ok(crate::domains::auth::preflight::test_preflight(
+        &RealHttpClient,
+        &service_id,
+        &config,
+        &variables,
+        cache_path.as_ref(),
+    )
+    .await)
 }
 
 #[tauri::command]

@@ -1,3 +1,4 @@
+use crate::domains::auth::AuthConfig;
 use crate::domains::service::service::{ServiceDomain, ServiceFile};
 use crate::domains::settings::{SettingsDomain, UserSettings};
 use crate::io::MockFileSystem;
@@ -119,6 +120,31 @@ fn test_save_service_versioning() {
         environments: vec![],
         is_authenticated: false,
         auth_type: Some(AuthType::None),
+        auth: AuthConfig {
+            r#type: "none".to_string(),
+            active: true,
+            basic_user: "".to_string(),
+            basic_pass: "".to_string(),
+            bearer_token: "".to_string(),
+            api_key_name: "".to_string(),
+            api_key_value: "".to_string(),
+            api_key_location: "header".to_string(),
+        },
+        preflight: PreflightConfig {
+            enabled: false,
+            method: "POST".to_string(),
+            url: "".to_string(),
+            body: "".to_string(),
+            body_type: "application/json".to_string(),
+            body_params: vec![],
+            headers: vec![],
+            cache_token: true,
+            cache_duration: "".to_string(),
+            cache_duration_key: "".to_string(),
+            cache_duration_unit: "seconds".to_string(),
+            token_key: "".to_string(),
+            token_header: None,
+        },
         endpoints: vec![Endpoint {
             id: "e1".to_string(),
             service_id: "s1".to_string(),

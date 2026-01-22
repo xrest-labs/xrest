@@ -43,6 +43,22 @@ pub struct QResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct PreflightTestResult {
+    pub success: bool,
+    pub token: Option<String>,
+    pub error: Option<String>,
+    pub request_url: String,
+    pub request_method: String,
+    pub request_headers: Vec<Header>,
+    pub request_body: String,
+    pub response_status: u16,
+    pub response_body: String,
+    pub response_headers: Vec<Header>,
+    pub time_elapsed: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BodyConfig {
     pub r#type: String,
     pub content: String,
@@ -193,6 +209,31 @@ mod tests {
             }],
             is_authenticated: true,
             auth_type: Some(AuthType::Bearer),
+            auth: AuthConfig {
+                r#type: "bearer".to_string(),
+                active: true,
+                basic_user: "".to_string(),
+                basic_pass: "".to_string(),
+                bearer_token: "token".to_string(),
+                api_key_name: "".to_string(),
+                api_key_value: "".to_string(),
+                api_key_location: "header".to_string(),
+            },
+            preflight: PreflightConfig {
+                enabled: false,
+                method: "POST".to_string(),
+                url: "".to_string(),
+                body: "".to_string(),
+                body_type: "application/json".to_string(),
+                body_params: vec![],
+                headers: vec![],
+                cache_token: true,
+                cache_duration: "".to_string(),
+                cache_duration_key: "".to_string(),
+                cache_duration_unit: "seconds".to_string(),
+                token_key: "".to_string(),
+                token_header: None,
+            },
             endpoints: vec![],
             directory: "/tmp".to_string(),
             selected_environment: Some("DEV".to_string()),

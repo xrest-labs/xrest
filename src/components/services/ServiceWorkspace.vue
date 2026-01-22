@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Components
 import RequestUrlBar from "@/components/RequestUrlBar.vue";
 import RequestParameters from "@/components/RequestParameters.vue";
-import RequestAuth from "@/components/RequestAuth.vue";
 import RequestBody from "@/components/RequestBody.vue";
 import RequestHistory from "@/components/RequestHistory.vue";
 import ResponseViewer from "@/components/ResponseViewer.vue";
@@ -248,209 +247,110 @@ const handleReloadService = async () => {
     <Tabs v-model="activeTab" class="flex-1 flex flex-col overflow-hidden">
       <div class="flex items-center border-b bg-muted/20 px-2 pt-1 gap-1">
         <TabsList class="h-9 bg-transparent p-0 gap-px">
-          <div
-            v-for="tab in tabs"
-            :key="tab.id"
-            class="group relative flex items-center"
-          >
-            <TabsTrigger
-              :value="tab.id"
-              :class="[
-                'h-8 px-3 rounded-t-md rounded-b-none border-b-0 data-[state=active]:bg-background data-[state=active]:border data-[state=active]:border-b-background -mb-px gap-2 relative overflow-hidden',
-                isUnsafeEnv(tab) ? 'bg-destructive/5' : '',
-              ]"
-            >
-              <div
-                v-if="isUnsafeEnv(tab)"
-                class="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-              ></div>
+          <div v-for="tab in tabs" :key="tab.id" class="group relative flex items-center">
+            <TabsTrigger :value="tab.id" :class="[
+              'h-8 px-3 rounded-t-md rounded-b-none border-b-0 data-[state=active]:bg-background data-[state=active]:border data-[state=active]:border-b-background -mb-px gap-2 relative overflow-hidden',
+              isUnsafeEnv(tab) ? 'bg-destructive/5' : '',
+            ]">
+              <div v-if="isUnsafeEnv(tab)"
+                class="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
               <template v-if="tab.type === 'settings'">
                 <Settings2 class="h-3 w-3 text-primary/70" />
               </template>
               <template v-else>
-                <span
-                  :class="[
-                    'font-bold ',
-                    tab.method === 'GET'
-                      ? 'text-green-600'
-                      : tab.method === 'POST'
-                        ? 'text-orange-600'
-                        : tab.method === 'PUT'
-                          ? 'text-blue-600'
-                          : 'text-red-600',
-                  ]"
-                  >{{ tab.method || "GET" }}</span
-                >
+                <span :class="[
+                  'font-bold ',
+                  tab.method === 'GET'
+                    ? 'text-green-600'
+                    : tab.method === 'POST'
+                      ? 'text-orange-600'
+                      : tab.method === 'PUT'
+                        ? 'text-blue-600'
+                        : 'text-red-600',
+                ]">{{ tab.method || "GET" }}</span>
               </template>
               <span class="max-w-[120px] truncate">{{ tab.title }}</span>
-              <div
-                v-if="tab.isEdited"
-                class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0"
-              ></div>
-              <button
-                @click.stop="closeTab(tab.id)"
-                class="ml-1 p-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-              >
+              <div v-if="tab.isEdited" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0"></div>
+              <button @click.stop="closeTab(tab.id)"
+                class="ml-1 p-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
                 <X class="h-3 w-3" />
               </button>
             </TabsTrigger>
           </div>
         </TabsList>
-        <button
-          @click="addTab()"
-          class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground mb-1"
-        >
+        <button @click="addTab()" class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground mb-1">
           <Plus class="h-4 w-4" />
         </button>
       </div>
 
       <div class="flex-1 overflow-hidden">
-        <TabsContent
-          v-for="tab in tabs as any"
-          :key="tab.id"
-          :value="tab.id"
-          class="h-full mt-0 focus-visible:ring-0"
-        >
+        <TabsContent v-for="tab in tabs as any" :key="tab.id" :value="tab.id" class="h-full mt-0 focus-visible:ring-0">
           <!-- Request View -->
-          <ResizablePanelGroup
-            v-if="tab.type !== 'settings'"
-            direction="vertical"
-          >
+          <ResizablePanelGroup v-if="tab.type !== 'settings'" direction="vertical">
             <ResizablePanel :default-size="50" :min-size="20">
               <div class="h-full p-4 overflow-auto">
                 <!-- URL Bar component -->
-                <RequestUrlBar
-                  v-model:method="tab.method"
-                  v-model:url="tab.url"
-                  :is-sending="isSending"
-                  :is-unsafe="isUnsafeEnv(tab)"
-                  :variables="getTabVariables(tab)"
-                  :environment-name="
-                    tab.serviceId ? activeEnvironments[tab.serviceId] : ''
-                  "
-                  @send="handleSendRequest(tab)"
-                  @save="handleSaveRequest(tab)"
-                  @share="emit('share-request', tab)"
-                />
+                <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
+                  :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                    " @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)"
+                  @share="emit('share-request', tab)" />
 
-                <div
-                  class="flex gap-4 border-b pb-0 mb-4 font-medium text-muted-foreground"
-                >
-                  <button
-                    @click="tab.activeSubTab = 'params'"
-                    :class="[
-                      'pb-2 -mb-px px-1 transition-colors relative',
-                      tab.activeSubTab === 'params'
-                        ? 'text-primary'
-                        : 'hover:text-foreground',
-                    ]"
-                  >
+                <div class="flex gap-4 border-b pb-0 mb-4 font-medium text-muted-foreground">
+                  <button @click="tab.activeSubTab = 'params'" :class="[
+                    'pb-2 -mb-px px-1 transition-colors relative',
+                    tab.activeSubTab === 'params'
+                      ? 'text-primary'
+                      : 'hover:text-foreground',
+                  ]">
                     Params
-                    <div
-                      v-if="tab.activeSubTab === 'params'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                    ></div>
+                    <div v-if="tab.activeSubTab === 'params'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
                   </button>
-                  <button
-                    @click="tab.activeSubTab = 'auth'"
-                    :class="[
-                      'pb-2 -mb-px px-1 transition-colors relative',
-                      tab.activeSubTab === 'auth'
-                        ? 'text-primary'
-                        : 'hover:text-foreground',
-                    ]"
-                  >
-                    Authorization
-                    <div
-                      v-if="tab.activeSubTab === 'auth'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                    ></div>
-                  </button>
-                  <button
-                    @click="tab.activeSubTab = 'headers'"
-                    :class="[
-                      'pb-2 -mb-px px-1 transition-colors relative',
-                      tab.activeSubTab === 'headers'
-                        ? 'text-primary'
-                        : 'hover:text-foreground',
-                    ]"
-                  >
+                  <button @click="tab.activeSubTab = 'headers'" :class="[
+                    'pb-2 -mb-px px-1 transition-colors relative',
+                    tab.activeSubTab === 'headers'
+                      ? 'text-primary'
+                      : 'hover:text-foreground',
+                  ]">
                     Headers
-                    <div
-                      v-if="tab.activeSubTab === 'headers'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                    ></div>
+                    <div v-if="tab.activeSubTab === 'headers'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
                   </button>
-                  <button
-                    @click="tab.activeSubTab = 'body'"
-                    :class="[
-                      'pb-2 -mb-px px-1 transition-colors relative',
-                      tab.activeSubTab === 'body'
-                        ? 'text-primary'
-                        : 'hover:text-foreground',
-                    ]"
-                  >
+                  <button @click="tab.activeSubTab = 'body'" :class="[
+                    'pb-2 -mb-px px-1 transition-colors relative',
+                    tab.activeSubTab === 'body'
+                      ? 'text-primary'
+                      : 'hover:text-foreground',
+                  ]">
                     Body
-                    <div
-                      v-if="tab.activeSubTab === 'body'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                    ></div>
+                    <div v-if="tab.activeSubTab === 'body'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
                   </button>
-                  <button
-                    @click="tab.activeSubTab = 'versions'"
-                    :class="[
-                      'pb-2 -mb-px px-1 transition-colors relative',
-                      tab.activeSubTab === 'versions'
-                        ? 'text-primary'
-                        : 'hover:text-foreground',
-                    ]"
-                  >
+                  <button @click="tab.activeSubTab = 'versions'" :class="[
+                    'pb-2 -mb-px px-1 transition-colors relative',
+                    tab.activeSubTab === 'versions'
+                      ? 'text-primary'
+                      : 'hover:text-foreground',
+                  ]">
                     Versions
-                    <div
-                      v-if="tab.activeSubTab === 'versions'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"
-                    ></div>
+                    <div v-if="tab.activeSubTab === 'versions'"
+                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
                   </button>
                 </div>
 
                 <!-- Sub-tabs Content -->
                 <div class="min-h-[200px]">
                   <!-- Params and Headers Table -->
-                  <RequestParameters
-                    v-if="tab.activeSubTab === 'params'"
-                    v-model:items="tab.params"
-                    title="Query Parameters"
-                    :variables="getTabVariables(tab)"
-                    :environment-name="getEnvName(tab)"
-                  />
-                  <RequestParameters
-                    v-else-if="tab.activeSubTab === 'headers'"
-                    v-model:items="tab.headers"
-                    title="Request Headers"
-                    :variables="getTabVariables(tab)"
-                    :environment-name="getEnvName(tab)"
-                  />
+                  <RequestParameters v-if="tab.activeSubTab === 'params'" v-model:items="tab.params"
+                    title="Query Parameters" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                  <RequestParameters v-else-if="tab.activeSubTab === 'headers'" v-model:items="tab.headers"
+                    title="Request Headers" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
 
-                  <RequestAuth
-                    v-else-if="tab.activeSubTab === 'auth'"
-                    v-model:auth="tab.auth"
-                    v-model:preflight="tab.preflight"
-                    :variables="getTabVariables(tab)"
-                    :environment-name="getEnvName(tab)"
-                  />
+                  <RequestBody v-else-if="tab.activeSubTab === 'body'" v-model:body="tab.body"
+                    :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
 
-                  <RequestBody
-                    v-else-if="tab.activeSubTab === 'body'"
-                    v-model:body="tab.body"
-                    :variables="getTabVariables(tab)"
-                    :environment-name="getEnvName(tab)"
-                  />
-
-                  <RequestHistory
-                    v-else-if="tab.activeSubTab === 'versions'"
-                    :versions="tab.versions || []"
-                    @restore="(v) => restoreVersion(tab, v)"
-                  />
+                  <RequestHistory v-else-if="tab.activeSubTab === 'versions'" :versions="tab.versions || []"
+                    @restore="(v) => restoreVersion(tab, v)" />
                 </div>
               </div>
             </ResizablePanel>
@@ -458,22 +358,12 @@ const handleReloadService = async () => {
             <ResizableHandle with-handle />
 
             <ResizablePanel :default-size="50" :min-size="20">
-              <ResponseViewer
-                v-if="tab.response"
-                :response="tab.response"
-                :url="tab.url"
-                :variables="getTabVariables(tab)"
-                :environment-name="
-                  tab.serviceId ? activeEnvironments[tab.serviceId] : ''
-                "
-              />
-              <div
-                v-else
-                class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5"
-              >
-                <div
-                  class="p-4 rounded-full bg-muted/20 border border-dashed border-muted"
-                >
+              <ResponseViewer v-if="tab.response" :response="tab.response" :url="tab.url"
+                :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                  " />
+              <div v-else
+                class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5">
+                <div class="p-4 rounded-full bg-muted/20 border border-dashed border-muted">
                   <Play class="h-8 w-8 opacity-20" />
                 </div>
                 <p class="font-medium tracking-tight">
@@ -484,20 +374,12 @@ const handleReloadService = async () => {
           </ResizablePanelGroup>
 
           <!-- Service Settings View -->
-          <ServiceSettingsView
-            v-else
-            :tab="tab"
-            :git-status="gitStatuses[tab.serviceId]"
-            @save="handleUpdateServiceSettings"
-            @delete="handleDeleteService"
+          <ServiceSettingsView v-else :tab="tab" :git-status="gitStatuses[tab.serviceId]"
+            @save="handleUpdateServiceSettings" @delete="handleDeleteService"
             @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
-            @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)"
-            @reload="handleReloadService"
-            @add-variable="addVariableToAll"
-            @remove-variable="removeVariable"
-            @sync-variable-name="syncVariableName"
-            @sync-variable-value="syncVariableValue"
-          />
+            @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)" @reload="handleReloadService"
+            @add-variable="addVariableToAll" @remove-variable="removeVariable" @sync-variable-name="syncVariableName"
+            @sync-variable-value="syncVariableValue" />
         </TabsContent>
       </div>
     </Tabs>

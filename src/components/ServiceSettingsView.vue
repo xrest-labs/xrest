@@ -14,7 +14,9 @@ import {
   Key,
   X,
   Check,
+  ShieldCheck,
 } from "lucide-vue-next";
+import RequestAuth from "@/components/RequestAuth.vue";
 import {
   Popover,
   PopoverContent,
@@ -108,91 +110,105 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <!-- General Settings Section -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="space-y-4 md:col-span-2">
-        <div class="bg-card rounded-lg border shadow-sm p-5 space-y-4">
-          <div class="flex items-center gap-2 mb-2">
-            <Settings2 class="h-4 w-4 text-primary" />
-            <h3 class="font-semibold uppercase tracking-wider">
-              General Information
-            </h3>
+    <!-- Main Content Stack -->
+    <div class="space-y-6">
+
+      <!-- General Settings Section -->
+      <div class="bg-card rounded-lg border shadow-sm p-5 space-y-4">
+        <div class="flex items-center gap-2 mb-2">
+          <Settings2 class="h-4 w-4 text-primary" />
+          <h3 class="font-semibold uppercase tracking-wider">
+            General Information
+          </h3>
+        </div>
+        <div class="grid gap-4">
+          <div class="space-y-2">
+            <Label class="">Service Name</Label>
+            <Input v-model="tab.serviceData.name" class="h-9" placeholder="Enter service name" />
           </div>
-          <div class="grid gap-4">
-            <div class="space-y-2">
-              <Label class="">Service Name</Label>
-              <Input v-model="tab.serviceData.name" class="h-9" placeholder="Enter service name" />
+          <div v-if="tab.serviceData.directory" class="space-y-2">
+            <Label class="">Base Directory</Label>
+            <div class="flex gap-2">
+              <Input :model-value="tab.serviceData.directory" readonly class="h-9 bg-muted/30 flex-1" />
             </div>
-            <div v-if="tab.serviceData.directory" class="space-y-2">
-              <Label class="">Base Directory</Label>
-              <div class="flex gap-2">
-                <Input :model-value="tab.serviceData.directory" readonly class="h-9 bg-muted/30 flex-1" />
-              </div>
-              <p class="text-muted-foreground">
-                All service configuration is stored in this directory as YAML
-                files.
-              </p>
-            </div>
+            <p class="text-muted-foreground">
+              All service configuration is stored in this directory as YAML
+              files.
+            </p>
           </div>
         </div>
       </div>
 
-      <!-- Quick Status Card -->
-      <div v-if="tab.serviceData.directory" class="space-y-4">
-        <div class="bg-card rounded-lg border shadow-sm p-5 h-full">
-          <div class="flex items-center gap-2 mb-4">
-            <GitBranch class="h-4 w-4 text-primary" />
-            <h3 class="font-semibold uppercase tracking-wider">Git Status</h3>
+      <!-- Authentication Settings -->
+      <div class="bg-card rounded-lg border shadow-sm p-5 space-y-4">
+        <div class="flex items-center gap-2 mb-2">
+          <ShieldCheck class="h-4 w-4 text-primary" />
+          <h3 class="font-semibold uppercase tracking-wider">
+            Service Authentication
+          </h3>
+        </div>
+        <p class="text-sm text-muted-foreground">
+          Configure authentication that will be used by default for all requests in this service.
+        </p>
+        <RequestAuth v-if="tab.serviceData.auth && tab.serviceData.preflight" v-model:auth="tab.serviceData.auth"
+          v-model:preflight="tab.serviceData.preflight" :variables="{}" :environment-name="''"
+          :service-id="tab.serviceId" />
+      </div>
+
+      <!-- Git Status Section -->
+      <div v-if="tab.serviceData.directory" class="bg-card rounded-lg border shadow-sm p-5 space-y-4">
+        <div class="flex items-center gap-2 mb-4">
+          <GitBranch class="h-4 w-4 text-primary" />
+          <h3 class="font-semibold uppercase tracking-wider">Git Status</h3>
+        </div>
+        <div v-if="gitStatus" class="space-y-4 mt-2">
+          <div class="flex items-center justify-between">
+            <span class="text-muted-foreground">Status</span>
+            <div v-if="gitStatus.isGit"
+              class="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+              <CheckCircle2 class="h-3 w-3" /> TRACKED
+            </div>
+            <div v-else
+              class="flex items-center gap-1.5 font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border">
+              UNTRACKED
+            </div>
           </div>
-          <div v-if="gitStatus" class="space-y-4 mt-2">
-            <div class="flex items-center justify-between">
-              <span class="text-muted-foreground">Status</span>
-              <div v-if="gitStatus.isGit"
-                class="flex items-center gap-1.5 font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
-                <CheckCircle2 class="h-3 w-3" /> TRACKED
-              </div>
-              <div v-else
-                class="flex items-center gap-1.5 font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border">
-                UNTRACKED
-              </div>
+          <div v-if="gitStatus.isGit" class="space-y-3">
+            <div class="flex items-center justify-between border-b border-dashed pb-2">
+              <span class="text-muted-foreground">Branch</span>
+              <span class="font-bold">{{ gitStatus.branch || "main" }}</span>
             </div>
-            <div v-if="gitStatus.isGit" class="space-y-3">
-              <div class="flex items-center justify-between border-b border-dashed pb-2">
-                <span class="text-muted-foreground">Branch</span>
-                <span class="font-bold">{{ gitStatus.branch || "main" }}</span>
-              </div>
-              <div class="flex items-center justify-between border-b border-dashed pb-2">
-                <span class="text-muted-foreground">Dirty Files</span>
-                <span :class="[
-                  'font-bold',
+            <div class="flex items-center justify-between border-b border-dashed pb-2">
+              <span class="text-muted-foreground">Dirty Files</span>
+              <span :class="[
+                'font-bold',
+                gitStatus.hasUncommittedChanges
+                  ? 'text-orange-500'
+                  : 'text-green-600',
+              ]">
+                {{
                   gitStatus.hasUncommittedChanges
-                    ? 'text-orange-500'
-                    : 'text-green-600',
-                ]">
-                  {{
-                    gitStatus.hasUncommittedChanges
-                      ? "Changes Detected"
-                      : "Clean"
-                  }}
-                </span>
-              </div>
-              <Button variant="outline" size="sm" class="w-full h-8 gap-2 mt-2" @click="
-                emit('syncGit', tab.serviceId, tab.serviceData.directory)
-                ">
-                <RefreshCw class="h-3 w-3" /> Sync with Remote
-              </Button>
+                    ? "Changes Detected"
+                    : "Clean"
+                }}
+              </span>
             </div>
-            <div v-else class="p-3 bg-muted/20 rounded border border-dashed text-center space-y-2">
-              <p class="text-muted-foreground">
-                This service directory is not a git repository. Initialize git
-                for automatic change tracking.
-              </p>
-              <Button variant="outline" size="sm" class="h-7 gap-1.5" @click="
-                emit('initGit', tab.serviceId, tab.serviceData.directory)
-                ">
-                <GitBranch class="h-3 w-3" /> Initialize Git
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" class="w-full h-8 gap-2 mt-2" @click="
+              emit('syncGit', tab.serviceId, tab.serviceData.directory)
+              ">
+              <RefreshCw class="h-3 w-3" /> Sync with Remote
+            </Button>
+          </div>
+          <div v-else class="p-3 bg-muted/20 rounded border border-dashed text-center space-y-2">
+            <p class="text-muted-foreground">
+              This service directory is not a git repository. Initialize git
+              for automatic change tracking.
+            </p>
+            <Button variant="outline" size="sm" class="h-7 gap-1.5" @click="
+              emit('initGit', tab.serviceId, tab.serviceData.directory)
+              ">
+              <GitBranch class="h-3 w-3" /> Initialize Git
+            </Button>
           </div>
         </div>
       </div>
