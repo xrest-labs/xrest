@@ -157,7 +157,7 @@ const isEnvUnsafe = (service: Service, envName: string) => {
           @contextmenu.prevent="emits('endpoint-context', $event, endpoint)"
           class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer group transition-colors">
           <div :class="[
-            ' font-bold w-10 shrink-0 capitalize text-right',
+            'text-[10px] font-bold w-14 shrink-0 uppercase text-left',
             getMethodColor(endpoint.method),
           ]">
             {{ endpoint.method }}
