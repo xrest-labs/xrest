@@ -9,14 +9,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { History, Layers, LayoutGrid, Settings, Key } from "lucide-vue-next";
 import { useRoute } from "vue-router";
-import XRestIcon from "./XRestIcon.vue";
 
 const route = useRoute();
-const { state } = useSidebar();
 
 const navItems = [
   {
@@ -48,16 +45,10 @@ const navItems = [
 </script>
 
 <template>
-  <Sidebar collapsible="icon">
-    <SidebarHeader class="h-16 flex items-center px-4">
-      <div class="flex items-center gap-2 font-bold text-xl overflow-hidden whitespace-nowrap">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-background text-primary shrink-0">
-          <XRestIcon class="h-6 w-6" />
-        </div>
-        <span v-if="state === 'expanded'" class="truncate">xrest</span>
-      </div>
-    </SidebarHeader>
+  <Sidebar side="right" collapsible="icon">
+    <SidebarHeader class="m-8">
 
+    </SidebarHeader>
     <SidebarContent>
       <SidebarGroup>
         <SidebarGroupContent>
@@ -65,7 +56,7 @@ const navItems = [
             <SidebarMenuItem v-for="item in navItems" :key="item.title">
               <SidebarMenuButton as-child :tooltip="item.title" :is-active="route.path === item.url">
                 <router-link :to="item.url" class="flex items-center gap-2">
-                  <component :is="item.icon" class="h-4 w-4" />
+                  <component :is="item.icon" class="h-6 w-6" />
                   <span>{{ item.title }}</span>
                 </router-link>
               </SidebarMenuButton>

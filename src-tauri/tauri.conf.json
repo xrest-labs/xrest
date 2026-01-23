@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "xrest",
+        "label": "main",
+        "title": "",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {
