@@ -288,8 +288,8 @@ const handleDeleteItem = async (payload: {
 
       <!-- Workspace Component -->
       <ResizablePanel :default-size="80">
-        <RequestWorkspace v-model="activeTab" :items="servicesStore.services" :git-statuses="gitStatuses"
-          label="Service" @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
+        <RequestWorkspace :items="servicesStore.services" :git-statuses="gitStatuses" label="Service"
+          @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
           @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
           @reload-items="servicesStore.loadServices" />
       </ResizablePanel>

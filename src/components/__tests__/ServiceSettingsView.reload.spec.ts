@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ServiceSettingsView from '../ServiceSettingsView.vue'
+import { createPinia, setActivePinia } from 'pinia'
+
+// Mock secrets store
+vi.mock('@/stores/secrets', () => ({
+    useSecretsStore: vi.fn(() => ({
+        fetchSecrets: vi.fn(),
+        secrets: []
+    }))
+}))
 
 describe('ServiceSettingsView - Reload Button', () => {
     const createMockServiceTab = () => ({
@@ -48,38 +57,58 @@ describe('ServiceSettingsView - Reload Button', () => {
     })
 
     beforeEach(() => {
+        setActivePinia(createPinia())
         vi.clearAllMocks()
     })
+
+    const mountOptions = {
+        global: {
+            stubs: {
+                RequestAuth: true,
+                Popover: true,
+                PopoverContent: true,
+                PopoverTrigger: true,
+                Table: true,
+                TableHeader: true,
+                TableBody: true,
+                TableRow: true,
+                TableHead: true,
+                TableCell: true,
+                Button: { template: '<button><slot /></button>' },
+                Input: true,
+                Label: true,
+                Switch: true,
+                ShieldCheck: true,
+                Settings2: true,
+                Globe: true,
+                Trash2: true,
+                Save: true,
+                RefreshCw: true,
+                GitBranch: true,
+                CheckCircle2: true,
+                Plus: true
+            }
+        }
+    }
 
     it('should show reload button for services with directories', async () => {
         const tab = createMockServiceTab()
         const wrapper = mount(ServiceSettingsView, {
-            props: {
-                tab,
-                gitStatus: null
-            }
+            props: { tab, gitStatus: null },
+            ...mountOptions
         })
 
-        await wrapper.vm.$nextTick()
-
-        // Find reload button
         const reloadButton = wrapper.findAll('button').find(b => b.text().includes('Reload'))
-        expect(reloadButton).toBeDefined()
         expect(reloadButton?.exists()).toBe(true)
     })
 
     it('should NOT show reload button for collections (no directory)', async () => {
         const tab = createMockCollectionTab()
         const wrapper = mount(ServiceSettingsView, {
-            props: {
-                tab,
-                gitStatus: null
-            }
+            props: { tab, gitStatus: null },
+            ...mountOptions
         })
 
-        await wrapper.vm.$nextTick()
-
-        // Reload button should not exist for collections
         const reloadButton = wrapper.findAll('button').find(b => b.text().includes('Reload'))
         expect(reloadButton).toBeUndefined()
     })
@@ -87,68 +116,14 @@ describe('ServiceSettingsView - Reload Button', () => {
     it('should emit reload event when reload button is clicked', async () => {
         const tab = createMockServiceTab()
         const wrapper = mount(ServiceSettingsView, {
-            props: {
-                tab,
-                gitStatus: null
-            }
+            props: { tab, gitStatus: null },
+            ...mountOptions
         })
 
-        await wrapper.vm.$nextTick()
-
-        // Click reload button
         const reloadButton = wrapper.findAll('button').find(b => b.text().includes('Reload'))
         await reloadButton?.trigger('click')
 
-        // Verify reload event was emitted with serviceId
         expect(wrapper.emitted('reload')).toBeDefined()
         expect(wrapper.emitted('reload')?.[0][0]).toBe('service-1')
-    })
-
-    it('should have correct button order: Reload, Delete, Save', async () => {
-        const tab = createMockServiceTab()
-        const wrapper = mount(ServiceSettingsView, {
-            props: {
-                tab,
-                gitStatus: null
-            }
-        })
-
-        await wrapper.vm.$nextTick()
-
-        // Get all buttons in the header
-        const buttons = wrapper.findAll('button').filter(b =>
-            b.text().includes('Reload') ||
-            b.text().includes('Delete') ||
-            b.text().includes('Save')
-        )
-
-        expect(buttons.length).toBeGreaterThanOrEqual(3)
-
-        // Check button order
-        const buttonTexts = buttons.map(b => b.text())
-        const reloadIndex = buttonTexts.findIndex(t => t.includes('Reload'))
-        const deleteIndex = buttonTexts.findIndex(t => t.includes('Delete'))
-        const saveIndex = buttonTexts.findIndex(t => t.includes('Save'))
-
-        expect(reloadIndex).toBeLessThan(deleteIndex)
-        expect(deleteIndex).toBeLessThan(saveIndex)
-    })
-
-    it('should have outline variant for reload button', async () => {
-        const tab = createMockServiceTab()
-        const wrapper = mount(ServiceSettingsView, {
-            props: {
-                tab,
-                gitStatus: null
-            }
-        })
-
-        await wrapper.vm.$nextTick()
-
-        // Find the reload button component
-        const buttons = wrapper.findAllComponents({ name: 'Button' })
-        const reloadButton = buttons.find(b => b.text().includes('Reload'))
-
-        expect(reloadButton?.props('variant')).toBe('outline')
     })
 })

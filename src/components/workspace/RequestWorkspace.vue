@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Plus, X, Settings2, Play } from "lucide-vue-next";
+import { onMounted, onUnmounted } from "vue";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -21,22 +22,14 @@ import { useEnvironmentVariables } from "@/composables/useEnvironmentVariables";
 import { useRequestExecution } from "@/composables/useRequestExecution";
 import { useDialogState } from "@/composables/useDialogState";
 import { toast } from "vue-sonner";
-import {
-  syncVariableValue,
-  syncVariableName,
-  removeVariable,
-  addVariableToAll,
-} from "@/lib/environment-utils";
 
 const props = defineProps<{
-  modelValue: string; // Active tab ID
   items: any[]; // Services or Collections
   gitStatuses?: Record<string, any>;
   label?: string; // 'Service' or 'Collection'
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: string): void;
   (e: "sync-git", serviceId: string, directory: string): void;
   (e: "init-git", serviceId: string, directory: string, url?: string): void;
   (e: "share-request", tab: any): void;
@@ -52,34 +45,44 @@ const emit = defineEmits<{
   (e: "reload-items"): void;
 }>();
 
-// Use tab manager but sync active tab with prop
+// Use tab manager
 const {
   tabs,
-  activeTab, // usage: we sync this with props.modelValue
+  activeTab,
   addTab,
   closeTab,
   updateTabSnapshot,
 } = useTabManager();
 
-// Sync props.modelValue with activeTab
-import { watch } from "vue";
-watch(
-  () => props.modelValue,
-  (newVal) => {
-    activeTab.value = newVal;
-  },
-);
-watch(activeTab, (newVal) => {
-  emit("update:modelValue", newVal);
-});
-
-const { activeEnvironments, getTabVariables, isUnsafeEnv, getEnvName } =
+const { getTabVariables, isUnsafeEnv, getEnvName } =
   useEnvironmentVariables();
 
 const { isUnsafeDialogOpen } = useDialogState();
 
 const { isSending, handleSendRequest } =
   useRequestExecution(isUnsafeDialogOpen);
+
+const handleGlobalKeyDown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    const tab = tabs.value.find((t: any) => t.id === activeTab.value);
+    if (tab) {
+      if (tab.type === "settings") {
+        handleUpdateSettings(tab);
+      } else {
+        handleSaveRequest(tab);
+      }
+    }
+  }
+};
+
+onMounted(() => {
+  window.addEventListener("keydown", handleGlobalKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleGlobalKeyDown);
+});
 
 const handleSaveRequest = async (tab: any) => {
   if (!tab.endpointId) {
@@ -126,138 +129,106 @@ const handleSaveRequest = async (tab: any) => {
       }
     }
   }
-  if (
-    !newPath.startsWith("/") &&
-    !newPath.includes("://") &&
-    !newPath.startsWith("{{")
-  ) {
-    newPath = "/" + newPath;
-  }
-
-  // Consolidate preflight structure
-  const preflight = {
-    enabled: tab.preflight.enabled,
-    method: tab.preflight.method,
-    url: tab.preflight.url,
-    body: tab.preflight.body,
-    headers: tab.preflight.headers || [],
-    cacheToken: tab.preflight.cacheToken,
-    cacheDuration: tab.preflight.cacheDuration,
-    cacheDurationKey: tab.preflight.cacheDurationKey,
-    cacheDurationUnit: tab.preflight.cacheDurationUnit,
-    tokenKey: tab.preflight.tokenKey,
-    tokenHeader: tab.preflight.tokenHeader,
-  };
 
   const updatedEndpoint = {
     ...endpoint,
     method: tab.method,
     url: newPath,
-    params: tab.params
-      .filter((p: any) => p.name)
-      .map((p: any) => ({
-        name: p.name,
-        value: p.value,
-        enabled: p.enabled ?? true,
-      })),
-    headers: tab.headers
-      .filter((h: any) => h.name)
-      .map((h: any) => ({
-        name: h.name,
-        value: h.value,
-        enabled: h.enabled ?? true,
-      })),
+    params: tab.params.map(({ enabled, name, value }: any) => ({
+      enabled,
+      name,
+      value,
+    })),
+    headers: tab.headers.map(({ enabled, name, value }: any) => ({
+      enabled,
+      name,
+      value,
+    })),
     body: tab.body.content,
-    preflight: preflight,
-    metadata: {
-      ...endpoint.metadata,
-      lastUpdated: Date.now(),
-    },
+    preflight: tab.preflight,
   };
 
   const updatedItem = {
     ...item,
-    endpoints: [...item.endpoints],
+    endpoints: item.endpoints.map((e: any, idx: number) =>
+      idx === endpointIndex ? updatedEndpoint : e,
+    ),
   };
-  updatedItem.endpoints[endpointIndex] = updatedEndpoint;
 
-  // Emit save event to parent
-  emit("save-request", { serviceIndex: itemIndex, updatedItem, tab });
+  emit("save-request", {
+    serviceIndex: itemIndex,
+    updatedItem,
+    tab,
+  });
+
   updateTabSnapshot(tab);
-
-  // Check if versions updated (handled by parent update, but we need to refresh tab versions from result?
-  // Usually local state update is reactive if props.items updates)
 };
 
-const restoreVersion = (tab: any, version: any) => {
-  tab.method = version.config.method;
-  tab.url = version.config.url;
-  tab.auth.type = version.config.authType;
-  tab.params = version.config.params.map((p: any) => ({ ...p, enabled: true }));
-  tab.headers = version.config.headers.map((h: any) => ({
-    ...h,
-    enabled: true,
-  }));
-  tab.body.content = version.config.body;
-  tab.preflight = JSON.parse(JSON.stringify(version.config.preflight));
+const handleUpdateSettings = async (tab: any) => {
+  const itemIndex = props.items.findIndex((i) => i.id === tab.serviceId);
+  if (itemIndex === -1) return;
 
-  toast.success(`Restored to version ${version.version}`);
+  emit("update-item", {
+    index: itemIndex,
+    data: tab.serviceData,
+    tab,
+  });
+
+  updateTabSnapshot(tab);
 };
 
-// Settings Handlers
-const handleUpdateSettings = (tab: any) => {
-  const index = props.items.findIndex((s) => s.id === tab.serviceId);
-  if (index !== -1) {
-    emit("update-item", { index, data: tab.serviceData, tab });
+const handleSelectServiceSettings = (service: any) => {
+  const tabId = `settings-${service.id}`;
+  const existingTab = tabs.value.find((t) => t.id === tabId);
+  if (existingTab) {
+    activeTab.value = tabId;
+  } else {
+    addTab({
+      id: tabId,
+      title: `${service.name}`,
+      type: "settings",
+      serviceId: service.id,
+      serviceData: JSON.parse(JSON.stringify(service)), // Deep copy for editing
+    });
   }
 };
 
-const handleDeleteItem = async (itemId: string, tabId: string) => {
-  const index = props.items.findIndex((s) => s.id === itemId);
-  if (index !== -1) {
-    // Using native confirm for now or import ask
-    const { ask } = await import("@tauri-apps/plugin-dialog");
-    const confirmation = await ask(
-      `Are you sure you want to delete "${props.items[index].name}"?`,
-      { title: "Confirm Deletion", kind: "warning" },
-    );
-
-    if (confirmation) {
-      emit("delete-item", { index, id: itemId, tabId });
-    }
-  }
+const handleUpdateBody = (content: string, tab: any) => {
+  tab.body.content = content;
 };
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-background">
+  <div class="flex-1 flex flex-col h-full bg-background overflow-hidden">
+    <!-- Tabs Header -->
     <Tabs v-model="activeTab" class="flex-1 flex flex-col overflow-hidden">
-      <div class="flex items-center border-b bg-muted/20 px-2 pt-1 gap-1">
-        <TabsList class="h-9 bg-transparent p-0 gap-px">
+      <div class="flex items-center border-b bg-muted/20 px-4 shrink-0">
+        <TabsList class="h-12 bg-transparent p-0 gap-0">
           <div v-for="tab in tabs" :key="tab.id" class="group relative flex items-center">
-            <TabsTrigger :value="tab.id" :class="[
-              'h-8 px-3 rounded-t-md rounded-b-none border-b-0 data-[state=active]:bg-background data-[state=active]:border data-[state=active]:border-b-background -mb-px gap-2 relative overflow-hidden',
-              isUnsafeEnv(tab) ? 'bg-destructive/5' : '',
-            ]">
-              <div v-if="isUnsafeEnv(tab)"
-                class="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
-              <template v-if="tab.type === 'settings'">
-                <Settings2 class="h-3 w-3 text-primary/70" />
-              </template>
-              <template v-else>
-                <span :class="[
-                  'font-bold ',
-                  tab.method === 'GET'
-                    ? 'text-green-600'
-                    : tab.method === 'POST'
-                      ? 'text-orange-600'
-                      : tab.method === 'PUT'
-                        ? 'text-blue-600'
-                        : 'text-red-600',
-                ]">{{ tab.method || "GET" }}</span>
-              </template>
-              <span class="max-w-[120px] truncate">{{ tab.title }}</span>
-              <div v-if="tab.isEdited" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0"></div>
+            <TabsTrigger :value="tab.id" @mousedown.middle.prevent.stop="closeTab(tab.id)"
+              @auxclick.middle.prevent.stop="closeTab(tab.id)" :class="[
+                'h-12 px-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background transition-none relative min-w-[120px] max-w-[200px] justify-start',
+                tab.isEdited ? 'italic text-muted-foreground' : ''
+              ]">
+              <div class="flex items-center gap-2 overflow-hidden w-full">
+                <span v-if="tab.type === 'request'" :class="[
+                  'text-[10px] font-bold px-1 rounded flex-shrink-0',
+                  tab.method === 'GET' ? 'text-green-500 bg-green-500/10' :
+                    tab.method === 'POST' ? 'text-orange-500 bg-orange-500/10' :
+                      tab.method === 'PUT' ? 'text-blue-500 bg-blue-500/10' :
+                        tab.method === 'DELETE' ? 'text-red-500 bg-red-500/10' :
+                          'text-purple-500 bg-purple-500/10'
+                ]">
+                  {{ tab.method }}
+                </span>
+                <span v-else class="flex-shrink-0">
+                  <Settings2 class="h-3 w-3 text-muted-foreground" />
+                </span>
+                <span class="truncate text-sm">{{ tab.title }}</span>
+                <span v-if="tab.isEdited" class="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 ml-1"></span>
+              </div>
+
+              <!-- Close Button -->
               <button @click.stop="closeTab(tab.id)"
                 class="ml-1 p-0.5 rounded-sm hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
                 <X class="h-3 w-3" />
@@ -265,110 +236,193 @@ const handleDeleteItem = async (itemId: string, tabId: string) => {
             </TabsTrigger>
           </div>
         </TabsList>
-        <button @click="addTab()" class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground mb-1">
+
+        <button @click="addTab()" class="ml-2 p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors"
+          title="New Request (Ctrl+N)">
           <Plus class="h-4 w-4" />
         </button>
       </div>
 
+      <!-- Tab Contents -->
       <div class="flex-1 overflow-hidden">
         <TabsContent v-for="tab in tabs as any" :key="tab.id" :value="tab.id" class="h-full mt-0 focus-visible:ring-0">
           <!-- Request View -->
-          <ResizablePanelGroup v-if="tab.type !== 'settings'" direction="vertical">
-            <ResizablePanel :default-size="50" :min-size="20">
-              <div class="h-full p-4 overflow-auto">
-                <!-- URL Bar component -->
-                <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
-                  :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
-                    " @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)"
-                  @share="emit('share-request', tab)" />
-
-                <div class="flex gap-4 border-b pb-0 mb-4 font-medium text-muted-foreground">
-                  <button @click="tab.activeSubTab = 'params'" :class="[
-                    'pb-2 -mb-px px-1 transition-colors relative',
-                    tab.activeSubTab === 'params'
-                      ? 'text-primary'
-                      : 'hover:text-foreground',
-                  ]">
-                    Params
-                    <div v-if="tab.activeSubTab === 'params'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
-                  </button>
-                  <button @click="tab.activeSubTab = 'headers'" :class="[
-                    'pb-2 -mb-px px-1 transition-colors relative',
-                    tab.activeSubTab === 'headers'
-                      ? 'text-primary'
-                      : 'hover:text-foreground',
-                  ]">
-                    Headers
-                    <div v-if="tab.activeSubTab === 'headers'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
-                  </button>
-                  <button @click="tab.activeSubTab = 'body'" :class="[
-                    'pb-2 -mb-px px-1 transition-colors relative',
-                    tab.activeSubTab === 'body'
-                      ? 'text-primary'
-                      : 'hover:text-foreground',
-                  ]">
-                    Body
-                    <div v-if="tab.activeSubTab === 'body'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
-                  </button>
-                  <button @click="tab.activeSubTab = 'versions'" :class="[
-                    'pb-2 -mb-px px-1 transition-colors relative',
-                    tab.activeSubTab === 'versions'
-                      ? 'text-primary'
-                      : 'hover:text-foreground',
-                  ]">
-                    Versions
-                    <div v-if="tab.activeSubTab === 'versions'"
-                      class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"></div>
-                  </button>
+          <div v-if="tab.type === 'request'" class="h-full flex flex-col">
+            <ResizablePanelGroup direction="vertical">
+              <ResizablePanel :default-size="50" :min-size="30" class="flex flex-col overflow-hidden">
+                <!-- URL Bar -->
+                <div class="p-4 border-b shrink-0">
+                  <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
+                    :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)"
+                    @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)" @share="emit('share-request', tab)" />
                 </div>
 
-                <!-- Sub-tabs Content -->
-                <div class="min-h-[200px]">
-                  <!-- Params and Headers Table -->
-                  <RequestParameters v-if="tab.activeSubTab === 'params'" v-model:items="tab.params"
-                    title="Query Parameters" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
-                  <RequestParameters v-else-if="tab.activeSubTab === 'headers'" v-model:items="tab.headers"
-                    title="Request Headers" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                <!-- Request Options (Tabs) -->
+                <div class="flex-1 overflow-hidden flex flex-col">
+                  <Tabs v-model="tab.activeSubTab" class="flex-1 flex flex-col overflow-hidden">
+                    <TabsList class="justify-start h-9 bg-transparent border-b px-4 rounded-none shrink-0">
+                      <TabsTrigger value="params"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Params
+                      </TabsTrigger>
+                      <TabsTrigger value="auth"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Auth
+                      </TabsTrigger>
+                      <TabsTrigger value="headers"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Headers
+                      </TabsTrigger>
+                      <TabsTrigger value="body"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Body
+                      </TabsTrigger>
+                      <TabsTrigger value="history"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        History
+                      </TabsTrigger>
+                      <TabsTrigger value="preflight"
+                        class="h-9 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">
+                        Preflight
+                      </TabsTrigger>
+                    </TabsList>
 
-                  <RequestBody v-else-if="tab.activeSubTab === 'body'" v-model:body="tab.body"
-                    :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                    <div class="flex-1 overflow-auto">
+                      <TabsContent value="params" class="p-0 m-0">
+                        <RequestParameters :items="tab.params" :variables="getTabVariables(tab)"
+                          :environment-name="getEnvName(tab)" />
+                      </TabsContent>
+                      <TabsContent value="auth" class="p-4 m-0">
+                        <div
+                          class="text-sm text-muted-foreground bg-muted/30 p-4 rounded-lg border border-dashed text-center">
+                          Authentication is managed at the {{ label?.toLowerCase() }} level.
+                          <button
+                            @click="handleSelectServiceSettings({ id: tab.serviceId, name: props.items.find(i => i.id === tab.serviceId)?.name })"
+                            class="text-primary hover:underline ml-1">
+                            Open Settings
+                          </button>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="headers" class="p-0 m-0">
+                        <RequestParameters :items="tab.headers" :variables="getTabVariables(tab)"
+                          :environment-name="getEnvName(tab)" />
+                      </TabsContent>
+                      <TabsContent value="body" class="p-0 m-0 h-full">
+                        <RequestBody :body="{ content: tab.body.content, type: tab.body.type }"
+                          :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)"
+                          @update:content="handleUpdateBody($event, tab)" />
+                      </TabsContent>
+                      <TabsContent value="history" class="p-0 m-0">
+                        <RequestHistory :versions="tab.versions || []" @restore="(v) => {
+                          tab.method = v.config.method;
+                          tab.url = v.config.url;
+                          tab.params = JSON.parse(JSON.stringify(v.config.params));
+                          tab.headers = JSON.parse(JSON.stringify(v.config.headers));
+                          tab.body.content = v.config.body;
+                          tab.preflight = JSON.parse(JSON.stringify(v.config.preflight));
+                        }" />
+                      </TabsContent>
+                      <TabsContent value="preflight" class="p-0 m-0 overflow-visible">
+                        <div class="p-4">
+                          <div class="flex items-center justify-between mb-4">
+                            <div>
+                              <h3 class="text-sm font-medium">Pre-request Script (UI Config)</h3>
+                              <p class="text-xs text-muted-foreground">Configure a request to run before this one (e.g.,
+                                to fetch a token).</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <span class="text-xs font-medium">{{ tab.preflight?.enabled ? 'Enabled' : 'Disabled'
+                                }}</span>
+                              <button @click="tab.preflight.enabled = !tab.preflight.enabled"
+                                :class="['w-8 h-4 rounded-full transition-colors relative', tab.preflight?.enabled ? 'bg-primary' : 'bg-muted border']">
+                                <div
+                                  :class="['absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all', tab.preflight?.enabled ? 'left-4.5' : 'left-0.5']">
+                                </div>
+                              </button>
+                            </div>
+                          </div>
 
-                  <RequestHistory v-else-if="tab.activeSubTab === 'versions'" :versions="tab.versions || []"
-                    @restore="(v) => restoreVersion(tab, v)" />
+                          <div v-if="tab.preflight?.enabled" class="space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div class="grid grid-cols-4 gap-4">
+                              <div class="col-span-1">
+                                <label
+                                  class="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Method</label>
+                                <select v-model="tab.preflight.method"
+                                  class="w-full bg-background border rounded px-2 py-1 text-sm h-8">
+                                  <option>GET</option>
+                                  <option>POST</option>
+                                  <option>PUT</option>
+                                </select>
+                              </div>
+                              <div class="col-span-3">
+                                <label
+                                  class="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">URL</label>
+                                <input v-model="tab.preflight.url" placeholder="https://auth.example.com/token"
+                                  class="w-full bg-background border rounded px-2 py-1 text-sm h-8" />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label
+                                class="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Body</label>
+                              <textarea v-model="tab.preflight.body" rows="3"
+                                placeholder='{"grant_type": "client_credentials"}'
+                                class="w-full bg-background border rounded px-2 py-1 text-sm font-mono" />
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                              <div>
+                                <label class="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Token
+                                  Key in Response</label>
+                                <input v-model="tab.preflight.tokenKey" placeholder="access_token"
+                                  class="w-full bg-background border rounded px-2 py-1 text-sm h-8" />
+                              </div>
+                              <div>
+                                <label class="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Inject
+                                  into Header</label>
+                                <input v-model="tab.preflight.tokenHeader" placeholder="Authorization"
+                                  class="w-full bg-background border rounded px-2 py-1 text-sm h-8" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </div>
+                  </Tabs>
                 </div>
-              </div>
-            </ResizablePanel>
+              </ResizablePanel>
 
-            <ResizableHandle with-handle />
+              <ResizableHandle with-handle />
 
-            <ResizablePanel :default-size="50" :min-size="20">
-              <ResponseViewer v-if="tab.response" :response="tab.response" :url="tab.url"
-                :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
-                  " />
-              <div v-else
-                class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5">
-                <div class="p-4 rounded-full bg-muted/20 border border-dashed border-muted">
-                  <Play class="h-8 w-8 opacity-20" />
-                </div>
-                <p class="font-medium tracking-tight">
-                  Send a request to see the response
-                </p>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+              <ResizablePanel :default-size="50" :min-size="20">
+                <ResponseViewer :response="tab.response" :url="tab.url" :variables="getTabVariables(tab)"
+                  :environment-name="getEnvName(tab)" />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </div>
 
-          <!-- Service Settings View -->
-          <ServiceSettingsView v-else :tab="tab" :git-status="props.gitStatuses ? props.gitStatuses[tab.serviceId] : undefined
-            " @save="handleUpdateSettings" @delete="(id) => handleDeleteItem(id, tab.id)"
-            @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
-            @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)" @reload="emit('reload-items')"
-            @add-variable="addVariableToAll" @remove-variable="removeVariable" @sync-variable-name="syncVariableName"
-            @sync-variable-value="syncVariableValue" />
+          <!-- Settings View -->
+          <div v-else-if="tab.type === 'settings'" class="h-full overflow-auto">
+            <ServiceSettingsView :tab="tab" :git-status="gitStatuses?.[tab.serviceId]" :label="label"
+              @save="handleUpdateSettings(tab)" @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
+              @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)" @reload="emit('reload-items')"
+              @delete="emit('delete-item', { index: props.items.findIndex(i => i.id === tab.serviceId), id: tab.serviceId, tabId: tab.id })" />
+          </div>
         </TabsContent>
       </div>
     </Tabs>
+
+    <!-- Empty State -->
+    <div v-if="tabs.length === 0" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+      <div class="p-8 rounded-full bg-muted/20 mb-4">
+        <Play class="h-12 w-12 opacity-20" />
+      </div>
+      <h3 class="text-lg font-medium mb-1">No tabs open</h3>
+      <p class="text-sm">Select an endpoint or click the plus to start</p>
+      <button @click="addTab()"
+        class="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+        New Request
+      </button>
+    </div>
   </div>
 </template>

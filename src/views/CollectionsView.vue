@@ -360,85 +360,43 @@ const handleDeleteItem = async (payload: {
   <div class="flex-1 overflow-hidden h-full">
     <ResizablePanelGroup direction="horizontal">
       <!-- Left Resizable Sidebar -->
-      <ResizablePanel
-        :default-size="20"
-        :min-size="15"
-        class="bg-muted/5 flex flex-col h-full border-r"
-      >
-        <CollectionExplorer
-          @select-endpoint="handleSelectEndpoint"
+      <ResizablePanel :default-size="20" :min-size="15" class="bg-muted/5 flex flex-col h-full border-r">
+        <CollectionExplorer @select-endpoint="handleSelectEndpoint"
           @select-service-settings="handleSelectCollectionSettings"
-          @env-change="collectionsStore.setSelectedEnvironment"
-          @endpoint-context="handleEndpointContext"
-        />
+          @env-change="collectionsStore.setSelectedEnvironment" @endpoint-context="handleEndpointContext" />
       </ResizablePanel>
 
       <ResizableHandle with-handle />
 
       <ResizablePanel :default-size="80" class="flex flex-col h-full">
-        <RequestWorkspace
-          v-model="activeTab"
-          :items="collectionsStore.collections"
-          label="Collection"
-          @share-request="handleShareRequest"
-          @save-request="handleSaveRequest"
-          @update-item="handleUpdateItem"
-          @delete-item="handleDeleteItem"
-          @reload-items="collectionsStore.loadCollections"
-        />
+        <RequestWorkspace :items="collectionsStore.collections" label="Collection" @share-request="handleShareRequest"
+          @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
+          @reload-items="collectionsStore.loadCollections" />
       </ResizablePanel>
     </ResizablePanelGroup>
 
     <!-- Dialogs -->
-    <AddCollectionDialog
-      :open="isCollectionDialogOpen"
-      @update:open="isCollectionDialogOpen = $event"
-      @collection-created="handleCollectionCreated"
-    />
+    <AddCollectionDialog :open="isCollectionDialogOpen" @update:open="isCollectionDialogOpen = $event"
+      @collection-created="handleCollectionCreated" />
 
-    <AddCollectionEndpointDialog
-      :open="isCollectionEndpointDialogOpen"
-      :collections="collectionsStore.collections"
-      @update:open="isCollectionEndpointDialogOpen = $event"
-      @endpoint-created="handleEndpointCreated"
-    />
+    <AddCollectionEndpointDialog :open="isCollectionEndpointDialogOpen" :collections="collectionsStore.collections"
+      @update:open="isCollectionEndpointDialogOpen = $event" @endpoint-created="handleEndpointCreated" />
 
-    <ShareRequestDialog
-      :open="isShareDialogOpen"
-      :tab="sharingTabData"
-      @update:open="isShareDialogOpen = $event"
-    />
+    <ShareRequestDialog :open="isShareDialogOpen" :tab="sharingTabData" @update:open="isShareDialogOpen = $event" />
 
-    <UnsafeEnvironmentDialog
-      :open="isUnsafeDialogOpen"
-      :environment-name="
-        unsafeTabToProceed ? getEnvName(unsafeTabToProceed) : ''
-      "
-      :countdown="unsafeCountdown"
-      @update:open="isUnsafeDialogOpen = $event"
-      @proceed="proceedWithUnsafeRequest"
-      @cancel="cancelUnsafeRequest"
-    />
+    <UnsafeEnvironmentDialog :open="isUnsafeDialogOpen" :environment-name="unsafeTabToProceed ? getEnvName(unsafeTabToProceed) : ''
+      " :countdown="unsafeCountdown" @update:open="isUnsafeDialogOpen = $event" @proceed="proceedWithUnsafeRequest"
+      @cancel="cancelUnsafeRequest" />
 
-    <AddToServiceDialog
-      :open="isAddToServiceDialogOpen"
-      @update:open="isAddToServiceDialogOpen = $event"
-      :endpoint="endpointToMigrate"
-      :source-collection="sourceCollectionMigrate"
-      @added="handleEndpointMigrated"
-    />
+    <AddToServiceDialog :open="isAddToServiceDialogOpen" @update:open="isAddToServiceDialogOpen = $event"
+      :endpoint="endpointToMigrate" :source-collection="sourceCollectionMigrate" @added="handleEndpointMigrated" />
 
     <!-- Context Menu -->
     <Teleport to="body">
-      <div
-        v-if="contextMenu.show"
-        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-        class="fixed z-[100] bg-popover text-popover-foreground border shadow-md rounded-md p-1 min-w-[150px] animate-in fade-in zoom-in-95 duration-100"
-      >
-        <button
-          @click="openMigrateDialog"
-          class="flex w-full items-center gap-2 px-2.5 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors"
-        >
+      <div v-if="contextMenu.show" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
+        class="fixed z-[100] bg-popover text-popover-foreground border shadow-md rounded-md p-1 min-w-[150px] animate-in fade-in zoom-in-95 duration-100">
+        <button @click="openMigrateDialog"
+          class="flex w-full items-center gap-2 px-2.5 py-1.5 hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors">
           <ArrowRight class="h-3.5 w-3.5 text-primary" />
           Add to Service
         </button>
