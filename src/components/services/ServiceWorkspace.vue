@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { Plus, X, Settings2, Play } from "lucide-vue-next";
 import {
   ResizableHandle,
@@ -39,6 +40,16 @@ const { tabs, activeTab, addTab, closeTab, updateTabSnapshot } =
 
 const { activeEnvironments, getTabVariables, isUnsafeEnv, getEnvName } =
   useEnvironmentVariables();
+
+// Explicit computed so RequestUrlBar/InterpolatedInput get updated variables
+// when store loads (first paint can happen before loadServices() completes).
+const tabVariablesMap = computed(() => {
+  const map: Record<string, Record<string, string>> = {};
+  for (const tab of tabs.value) {
+    map[tab.id] = getTabVariables(tab);
+  }
+  return map;
+});
 
 const { isUnsafeDialogOpen } = useDialogState();
 
@@ -291,7 +302,7 @@ const handleReloadService = async () => {
               <div class="h-full p-4 overflow-auto">
                 <!-- URL Bar component -->
                 <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
-                  :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                  :is-unsafe="isUnsafeEnv(tab)" :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
                     " @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)"
                   @share="emit('share-request', tab)" />
 
@@ -342,12 +353,12 @@ const handleReloadService = async () => {
                 <div class="min-h-[200px]">
                   <!-- Params and Headers Table -->
                   <RequestParameters v-if="tab.activeSubTab === 'params'" v-model:items="tab.params"
-                    title="Query Parameters" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                    title="Query Parameters" :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="getEnvName(tab)" />
                   <RequestParameters v-else-if="tab.activeSubTab === 'headers'" v-model:items="tab.headers"
-                    title="Request Headers" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                    title="Request Headers" :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="getEnvName(tab)" />
 
                   <RequestBody v-else-if="tab.activeSubTab === 'body'" v-model:body="tab.body"
-                    :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)" />
+                    :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="getEnvName(tab)" />
 
                   <RequestHistory v-else-if="tab.activeSubTab === 'versions'" :versions="tab.versions || []"
                     @restore="(v) => restoreVersion(tab, v)" />
@@ -359,7 +370,7 @@ const handleReloadService = async () => {
 
             <ResizablePanel :default-size="50" :min-size="20">
               <ResponseViewer v-if="tab.response" :response="tab.response" :url="tab.url"
-                :variables="getTabVariables(tab)" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
+                :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="tab.serviceId ? activeEnvironments[tab.serviceId] : ''
                   " />
               <div v-else
                 class="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 bg-muted/5">

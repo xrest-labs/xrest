@@ -36,6 +36,7 @@ const selectedImportServiceId = ref<string>("");
 const {
   isServiceDialogOpen,
   isEndpointDialogOpen,
+  openEndpointDialog,
   isSwaggerDialogOpen,
   isShareDialogOpen,
   isUnsafeDialogOpen,
@@ -74,7 +75,7 @@ const handleServiceCreated = (service: any) => {
   servicesStore.addService(service);
 };
 
-const handleEndpointCreated = (endpoint: any, serviceId: string) => {
+const handleEndpointCreated = async (endpoint: any, serviceId: string) => {
   const serviceIndex = servicesStore.services.findIndex(
     (s) => s.id === serviceId,
   );
@@ -84,8 +85,10 @@ const handleEndpointCreated = (endpoint: any, serviceId: string) => {
       ...service,
       endpoints: [...service.endpoints, endpoint],
     };
-    servicesStore.updateService(serviceIndex, updatedService);
-    handleSelectEndpoint(endpoint);
+    await servicesStore.updateService(serviceIndex, updatedService);
+    // Pass serviceId so the new tab gets variables even on first render
+    handleSelectEndpoint(endpoint, serviceId);
+    isEndpointDialogOpen.value = false;
   }
 };
 
@@ -93,11 +96,13 @@ const handleSwaggerImportComplete = async () => {
   await servicesStore.loadServices();
 };
 
-const handleSelectEndpoint = (endpoint: any) => {
-  // Find service that owns this endpoint
-  const service = servicesStore.services.find((s) =>
-    s.endpoints.some((e) => e.id === endpoint.id),
-  );
+const handleSelectEndpoint = (endpoint: any, knownServiceId?: string) => {
+  // Find service that owns this endpoint (or use knownServiceId when opening a newly created endpoint)
+  const service = knownServiceId
+    ? servicesStore.services.find((s) => s.id === knownServiceId)
+    : servicesStore.services.find((s) =>
+        s.endpoints.some((e) => e.id === endpoint.id),
+      );
   // Determine if service has BASE_URL defined to use placeholders
   const hasBaseUrl = service?.environments?.some((e) =>
     e.variables.some((v) => v.name === "BASE_URL"),
@@ -289,6 +294,7 @@ const handleDeleteItem = async (payload: {
       <!-- Workspace Component -->
       <ResizablePanel :default-size="80">
         <RequestWorkspace :items="servicesStore.services" :git-statuses="gitStatuses" label="Service"
+          :on-new-request="openEndpointDialog"
           @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
           @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
           @reload-items="servicesStore.loadServices" />

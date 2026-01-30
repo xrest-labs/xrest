@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus, X, Settings2, Play } from "lucide-vue-next";
-import { onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted } from "vue";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -27,6 +27,8 @@ const props = defineProps<{
   items: any[]; // Services or Collections
   gitStatuses?: Record<string, any>;
   label?: string; // 'Service' or 'Collection'
+  /** When set, "New Request" / plus opens this (e.g. Add Endpoint dialog) instead of a blank tab */
+  onNewRequest?: () => void;
 }>();
 
 const emit = defineEmits<{
@@ -57,10 +59,28 @@ const {
 const { getTabVariables, isUnsafeEnv, getEnvName } =
   useEnvironmentVariables();
 
+// Explicit computed so RequestUrlBar/InterpolatedInput get updated variables
+// when store loads (first paint can happen before loadServices() completes).
+const tabVariablesMap = computed(() => {
+  const map: Record<string, Record<string, string>> = {};
+  for (const tab of tabs.value) {
+    map[tab.id] = getTabVariables(tab);
+  }
+  return map;
+});
+
 const { isUnsafeDialogOpen } = useDialogState();
 
 const { isSending, handleSendRequest } =
   useRequestExecution(isUnsafeDialogOpen);
+
+const handleNewRequest = () => {
+  if (props.onNewRequest) {
+    props.onNewRequest();
+  } else {
+    addTab();
+  }
+};
 
 const handleGlobalKeyDown = (e: KeyboardEvent) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
@@ -237,7 +257,7 @@ const handleUpdateBody = (content: string, tab: any) => {
           </div>
         </TabsList>
 
-        <button @click="addTab()" class="ml-2 p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors"
+        <button @click="handleNewRequest" class="ml-2 p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors"
           title="New Request (Ctrl+N)">
           <Plus class="h-4 w-4" />
         </button>
@@ -253,7 +273,7 @@ const handleUpdateBody = (content: string, tab: any) => {
                 <!-- URL Bar -->
                 <div class="p-4 border-b shrink-0">
                   <RequestUrlBar v-model:method="tab.method" v-model:url="tab.url" :is-sending="isSending"
-                    :is-unsafe="isUnsafeEnv(tab)" :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)"
+                    :is-unsafe="isUnsafeEnv(tab)" :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="getEnvName(tab)"
                     @send="handleSendRequest(tab)" @save="handleSaveRequest(tab)" @share="emit('share-request', tab)" />
                 </div>
 
@@ -289,7 +309,7 @@ const handleUpdateBody = (content: string, tab: any) => {
 
                     <div class="flex-1 overflow-auto">
                       <TabsContent value="params" class="p-0 m-0">
-                        <RequestParameters :items="tab.params" :variables="getTabVariables(tab)"
+                        <RequestParameters :items="tab.params" :variables="tabVariablesMap[tab.id] ?? {}"
                           :environment-name="getEnvName(tab)" />
                       </TabsContent>
                       <TabsContent value="auth" class="p-4 m-0">
@@ -304,12 +324,12 @@ const handleUpdateBody = (content: string, tab: any) => {
                         </div>
                       </TabsContent>
                       <TabsContent value="headers" class="p-0 m-0">
-                        <RequestParameters :items="tab.headers" :variables="getTabVariables(tab)"
+                        <RequestParameters :items="tab.headers" :variables="tabVariablesMap[tab.id] ?? {}"
                           :environment-name="getEnvName(tab)" />
                       </TabsContent>
                       <TabsContent value="body" class="p-0 m-0 h-full">
                         <RequestBody :body="{ content: tab.body.content, type: tab.body.type }"
-                          :variables="getTabVariables(tab)" :environment-name="getEnvName(tab)"
+                          :variables="tabVariablesMap[tab.id] ?? {}" :environment-name="getEnvName(tab)"
                           @update:content="handleUpdateBody($event, tab)" />
                       </TabsContent>
                       <TabsContent value="history" class="p-0 m-0">
@@ -395,7 +415,7 @@ const handleUpdateBody = (content: string, tab: any) => {
               <ResizableHandle with-handle />
 
               <ResizablePanel :default-size="50" :min-size="20">
-                <ResponseViewer :response="tab.response" :url="tab.url" :variables="getTabVariables(tab)"
+                <ResponseViewer :response="tab.response" :url="tab.url" :variables="tabVariablesMap[tab.id] ?? {}"
                   :environment-name="getEnvName(tab)" />
               </ResizablePanel>
             </ResizablePanelGroup>
@@ -419,7 +439,7 @@ const handleUpdateBody = (content: string, tab: any) => {
       </div>
       <h3 class="text-lg font-medium mb-1">No tabs open</h3>
       <p class="text-sm">Select an endpoint or click the plus to start</p>
-      <button @click="addTab()"
+      <button @click="handleNewRequest"
         class="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
         New Request
       </button>

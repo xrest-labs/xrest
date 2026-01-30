@@ -38,6 +38,7 @@ const servicesStore = useServicesStore();
 const {
   isCollectionDialogOpen,
   isCollectionEndpointDialogOpen,
+  openCollectionEndpointDialog,
   isShareDialogOpen,
   isUnsafeDialogOpen,
 } = useDialogState();
@@ -369,7 +370,9 @@ const handleDeleteItem = async (payload: {
       <ResizableHandle with-handle />
 
       <ResizablePanel :default-size="80" class="flex flex-col h-full">
-        <RequestWorkspace :items="collectionsStore.collections" label="Collection" @share-request="handleShareRequest"
+        <RequestWorkspace :items="collectionsStore.collections" label="Collection"
+          :on-new-request="openCollectionEndpointDialog"
+          @share-request="handleShareRequest"
           @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
           @reload-items="collectionsStore.loadCollections" />
       </ResizablePanel>

@@ -73,6 +73,7 @@ const getMethodColor = (m: string) => {
     </Select>
 
     <InterpolatedInput
+      :key="Object.keys(variables || {}).length ? 'vars-loaded' : 'vars-empty'"
       :model-value="url"
       @update:model-value="emit('update:url', $event)"
       :variables="variables"
