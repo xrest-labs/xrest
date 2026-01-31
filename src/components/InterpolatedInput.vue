@@ -291,7 +291,7 @@ watch(
                   {{ token.content }}
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" class="max-w-xs break-all z-[100] shadow-xl border-primary/20">
+              <TooltipContent side="top" class="w-fit max-w-[280px] break-all z-[100] shadow-xl border-primary/20 px-3 py-2">
                 <div class="space-y-1.5 p-0.5">
                   <div v-if="token.isValid" class="flex flex-col gap-1">
                     <div class="flex items-center justify-between gap-4">
@@ -301,37 +301,35 @@ watch(
                           token.isSecret ? 'bg-amber-500' : 'bg-primary',
                         )
                           "></div>
-                        <span class="uppercase font-bold tracking-wider text-muted-foreground">{{
+                        <span class="font-semibold text-muted-foreground text-xs">{{
                           token.isSecret ? "Secure Secret" : "Active Value"
                         }}</span>
                       </div>
                       <span v-if="!token.isSecret && environmentName"
-                        class="bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-bold border border-border/50">{{
+                        class="bg-muted px-1 py-0.5 rounded text-muted-foreground font-medium text-[10px] border border-border/50">{{
                         environmentName }}</span>
                       <Lock v-if="token.isSecret" class="h-3 w-3 text-amber-500" />
                     </div>
                     <div v-if="token.isSecret"
                       class="text-amber-500 bg-amber-500/5 p-1.5 rounded border border-amber-500/10 text-xs italic">
-                      Value is securely stored in macOS Keychain and cannot be
-                      viewed here.
+                      Value is securely stored and hidden.
                     </div>
                     <span v-else
-                      class="text-primary bg-primary/5 p-1.5 rounded border border-primary/10 break-all select-all font-mono">{{
+                      class="text-primary bg-primary/5 p-1 rounded border border-primary/10 break-all select-all font-mono text-xs">{{
                       token.resolvedValue }}</span>
                   </div>
                   <div v-else class="flex flex-col gap-1 text-destructive">
                     <div class="flex items-center justify-between gap-4">
                       <div class="flex items-center gap-2">
                         <div class="h-1.5 w-1.5 rounded-full bg-destructive animate-bounce"></div>
-                        <span class="uppercase font-bold tracking-wider">Missing Variable</span>
+                        <span class="font-semibold text-xs">Missing Variable</span>
                       </div>
                       <span v-if="environmentName"
-                        class="bg-destructive/10 px-1.5 py-0.5 rounded text-destructive font-bold border border-destructive/20">{{
+                        class="bg-destructive/10 px-1 py-0.5 rounded text-destructive font-medium text-[10px] border border-destructive/20">{{
                         environmentName }}</span>
                     </div>
-                    <span class="leading-relaxed">The variable
-                      <code class="font-bold">{{ token.content }}</code> is not
-                      defined in the current environment.</span>
+                    <span class="leading-relaxed text-xs">The variable
+                      <code class="font-bold underline underline-offset-2">{{ token.content }}</code> is not defined.</span>
                   </div>
                 </div>
               </TooltipContent>
