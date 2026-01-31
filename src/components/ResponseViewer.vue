@@ -110,10 +110,10 @@ const copyToClipboard = (text: string) => {
       >
         <div class="flex items-center justify-between">
           <span
-            class="text-muted-foreground font-medium uppercase tracking-tight"
+            class="text-muted-foreground font-medium tracking-tight"
           >
             Content-Type:
-            <span class="text-foreground ml-1">{{ response.type }}</span>
+            <span class="text-foreground ml-1">{{ response.headers.find((h: any) => h.name.toLowerCase() === 'content-type')?.value }}</span>
           </span>
           <button
             @click="copyToClipboard(response.body)"

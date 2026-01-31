@@ -136,13 +136,13 @@ const highlightedContent = computed(() => {
 
 <template>
   <div
-    class="relative w-full group overflow-hidden rounded-md border bg-background transition-shadow focus-within:ring-1 focus-within:ring-primary">
+    class="relative w-full group overflow-hidden rounded-md border bg-background transition-shadow focus-within:ring-1 focus-within:ring-primary xrest-editor-container">
     <!-- 1. Text Layer -->
     <div ref="textRef"
       class="absolute inset-0 pointer-events-none px-3 py-2 font-mono whitespace-pre-wrap break-all overflow-hidden"
       :style="{ fontSize: 'inherit' }">
       <template v-if="highlightedContent">
-        <div v-html="highlightedContent" class="prism-code-inline"></div>
+        <div v-html="highlightedContent" class="prism-code-inline xrest-editor-highlight"></div>
       </template>
       <template v-else v-for="(token, i) in tokens" :key="i">
         <span v-if="token.type === 'text'" class="text-foreground">{{
@@ -254,76 +254,90 @@ const highlightedContent = computed(() => {
   </div>
 </template>
 
-<style scoped>
-textarea,
-div {
-  font-family:
-    "Roboto Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 12pt;
+<style>
+.xrest-editor-highlight {
+  --token-property: #0550ae;
+  --token-string: #116329;
+  --token-number: #cf222e;
+  --token-boolean: #0550ae;
+  --token-punctuation: #57606a;
+  --token-comment: #6e7781;
+  --token-keyword: #cf222e;
+}
+
+.dark .xrest-editor-highlight {
+  --token-property: #79c0ff;
+  --token-string: #a5d6ff;
+  --token-number: #ffa657;
+  --token-boolean: #79c0ff;
+  --token-punctuation: #8b949e;
+  --token-comment: #8b949e;
+  --token-keyword: #ff7b72;
+}
+
+.xrest-editor-highlight .token.interpolated-variable {
+  color: transparent !important;
+}
+
+.xrest-editor-highlight .token.comment,
+.xrest-editor-highlight .token.prolog,
+.xrest-editor-highlight .token.doctype,
+.xrest-editor-highlight .token.cdata {
+  color: var(--token-comment);
+}
+
+.xrest-editor-highlight .token.punctuation {
+  color: var(--token-punctuation);
+}
+
+.xrest-editor-highlight .token.property,
+.xrest-highlight .token.keyword,
+.xrest-editor-highlight .token.tag {
+  color: var(--token-property);
+}
+
+.xrest-editor-highlight .token.boolean,
+.xrest-editor-highlight .token.constant,
+.xrest-editor-highlight .token.number {
+  color: var(--token-number);
+}
+
+.xrest-editor-highlight .token.string,
+.xrest-editor-highlight .token.char,
+.xrest-editor-highlight .token.builtin,
+.xrest-editor-highlight .token.inserted,
+.xrest-editor-highlight .token.attr-value {
+  color: var(--token-string);
+}
+
+.xrest-editor-highlight .token.operator,
+.xrest-editor-highlight .token.entity,
+.xrest-editor-highlight .token.url,
+.xrest-editor-highlight .token.function {
+  color: hsl(var(--foreground));
+}
+
+.xrest-editor-highlight .token.regex,
+.xrest-editor-highlight .token.important,
+.xrest-editor-highlight .token.atrule {
+  color: var(--token-keyword);
+}
+
+/* Base styles for the textarea positioning */
+.xrest-editor-container textarea,
+.xrest-editor-container div {
+  font-family: "Roboto Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 11pt;
   letter-spacing: normal;
   line-height: normal;
 }
 
-div::-webkit-scrollbar {
+.xrest-editor-container div::-webkit-scrollbar {
   display: none;
 }
 
-div {
+.xrest-editor-container div {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-/* Prism inline styles for the editor */
-:deep(.prism-code-inline) {
-  color: hsl(var(--foreground));
-}
-
-:deep(.token.interpolated-variable) {
-  color: transparent !important;
-}
-
-:deep(.token.comment),
-:deep(.token.prolog),
-:deep(.token.doctype),
-:deep(.token.cdata) {
-  color: #5c6370;
-}
-
-:deep(.token.punctuation) {
-  color: #abb2bf;
-}
-
-:deep(.token.property),
-:deep(.token.keyword),
-:deep(.token.tag) {
-  color: #e06c75;
-}
-
-:deep(.token.boolean),
-:deep(.token.constant),
-:deep(.token.number) {
-  color: #d19a66;
-}
-
-:deep(.token.string),
-:deep(.token.char),
-:deep(.token.builtin),
-:deep(.token.inserted),
-:deep(.token.attr-value) {
-  color: #98c379;
-}
-
-:deep(.token.operator),
-:deep(.token.entity),
-:deep(.token.url),
-:deep(.token.function) {
-  color: #61afef;
-}
-
-:deep(.token.regex),
-:deep(.token.important),
-:deep(.token.atrule) {
-  color: #c678dd;
 }
 </style>

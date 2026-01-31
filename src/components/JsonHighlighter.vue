@@ -40,7 +40,7 @@ const highlightedCode = computed(() => {
   <pre
     :class="
       cn(
-        'prism-code font-mono whitespace-pre p-3 rounded-md bg-background shadow-sm leading-relaxed overflow-auto border',
+        'prism-code xrest-highlight font-mono whitespace-pre p-3 rounded-md bg-background shadow-sm leading-relaxed overflow-auto border',
         props.class,
       )
     "
@@ -48,151 +48,106 @@ const highlightedCode = computed(() => {
 </template>
 
 <style>
-/**
- * One Dark theme for Prism.js
- * Based on Atom's One Dark theme
- */
-.prism-code {
-  color: hsl(var(--foreground));
-  text-shadow: 0 1px rgba(0, 0, 0, 0.3);
-  direction: ltr;
-  text-align: left;
-  white-space: pre;
-  word-spacing: normal;
-  word-break: normal;
-  line-height: 1.5;
-  tab-size: 2;
-  hyphens: none;
+.xrest-highlight {
+  --code-foreground: #24292f;
+  --token-property: #0550ae;
+  --token-string: #116329;
+  --token-number: #cf222e;
+  --token-boolean: #0550ae;
+  --token-punctuation: #57606a;
+  --token-comment: #6e7781;
+  --token-keyword: #cf222e;
+  --token-function: #8250df;
+  --token-null: #0550ae;
+  
+  color: var(--code-foreground);
+  line-height: 1.6;
+  font-size: 0.875rem;
 }
 
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata {
-  color: #5c6370;
+.dark .xrest-highlight {
+  --code-foreground: #c9d1d9;
+  --token-property: #79c0ff;
+  --token-string: #a5d6ff;
+  --token-number: #ffa657;
+  --token-boolean: #79c0ff;
+  --token-punctuation: #8b949e;
+  --token-comment: #8b949e;
+  --token-keyword: #ff7b72;
+  --token-function: #d2a8ff;
+  --token-null: #79c0ff;
 }
 
-.token.punctuation {
-  color: #abb2bf;
-}
-
-.token.namespace {
-  opacity: 0.7;
-}
-
-.token.property,
-.token.keyword,
-.token.tag {
-  color: #e06c75;
-}
-
-.token.class-name {
-  color: #e5c07b;
-  text-decoration: underline;
-}
-
-.token.boolean,
-.token.constant {
-  color: #d19a66;
-}
-
-.token.symbol,
-.token.deleted {
-  color: #e06c75;
-}
-
-.token.number {
-  color: #d19a66;
-}
-
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
-  color: #98c379;
-}
-
-.token.variable {
-  color: #e06c75;
-}
-
-.token.operator {
-  color: #56b6c2;
-}
-
-.token.entity,
-.token.url {
-  color: #61afef;
-}
-
-.token.attr-value,
-.token.atrule {
-  color: #98c379;
-}
-
-.token.function {
-  color: #61afef;
-}
-
-.token.regex,
-.token.important {
-  color: #c678dd;
-}
-
-.token.important,
-.token.bold {
-  font-weight: bold;
-}
-
-.token.italic {
+.xrest-highlight .token.comment,
+.xrest-highlight .token.prolog,
+.xrest-highlight .token.doctype,
+.xrest-highlight .token.cdata {
+  color: var(--token-comment);
   font-style: italic;
 }
 
-.token.entity {
-  cursor: help;
+.xrest-highlight .token.punctuation {
+  color: var(--token-punctuation);
 }
 
-/* Adjust colors for dark mode if needed using shadcn vars */
-.dark .token.string {
-  color: #98c379;
+.xrest-highlight .token.property,
+.xrest-highlight .token.tag,
+.xrest-highlight .token.constant,
+.xrest-highlight .token.symbol,
+.xrest-highlight .token.deleted {
+  color: var(--token-property);
+  font-weight: 500;
 }
 
-.dark .token.number {
-  color: #d19a66;
+.xrest-highlight .token.boolean,
+.xrest-highlight .token.number {
+  color: var(--token-number);
 }
 
-.dark .token.boolean {
-  color: #d19a66;
+.xrest-highlight .token.selector,
+.xrest-highlight .token.attr-name,
+.xrest-highlight .token.string,
+.xrest-highlight .token.char,
+.xrest-highlight .token.builtin,
+.xrest-highlight .token.inserted {
+  color: var(--token-string);
 }
 
-.dark .token.property {
-  color: #e06c75;
+.xrest-highlight .token.operator,
+.xrest-highlight .token.entity,
+.xrest-highlight .token.url {
+  color: var(--code-foreground);
 }
 
-.dark .token.punctuation {
-  color: #abb2bf;
+.xrest-highlight .token.keyword {
+  color: var(--token-keyword);
 }
 
-/* JSON specific */
-.token.property {
-  color: #e06c75;
+.xrest-highlight .token.function {
+  color: var(--token-function);
 }
 
-.token.string {
-  color: #98c379;
+.xrest-highlight .token.important,
+.xrest-highlight .token.bold {
+  font-weight: 600;
 }
 
-.token.number {
-  color: #d19a66;
+.xrest-highlight .token.italic {
+  font-style: italic;
 }
 
-.token.boolean {
-  color: #56b6c2;
+/* JSON Specific Adjustments */
+.language-json.xrest-highlight .token.property {
+  color: var(--token-property);
 }
 
-.token.null {
-  color: #56b6c2;
+.language-json.xrest-highlight .token.boolean {
+  color: var(--token-boolean);
+  font-weight: 600;
+}
+
+.language-json.xrest-highlight .token.null {
+  color: var(--token-null);
+  font-weight: 600;
 }
 </style>

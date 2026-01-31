@@ -118,7 +118,7 @@ export const useTabsStore = defineStore('tabs', () => {
                 })
             } else if (tabs.value.length === 0) {
                 // Add a default tab if none exists
-                addTab()
+                // addTab()
             }
             isInitialized.value = true
         } catch (error) {
