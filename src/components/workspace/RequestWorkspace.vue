@@ -64,7 +64,7 @@ const tabVariablesMap = computed(() => {
   return map;
 });
 
-const { isUnsafeDialogOpen } = useDialogState();
+const { isUnsafeDialogOpen, openServiceDialog } = useDialogState();
 
 const { isSending, handleSendRequest } =
   useRequestExecution(isUnsafeDialogOpen);
@@ -412,17 +412,33 @@ const handleUpdateBody = (content: string, tab: any) => {
       </div>
     </Tabs>
 
-    <!-- Empty State -->
-    <div v-if="tabs.length === 0" class="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+    <div
+      v-if="tabs.length === 0"
+      class="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6 text-center"
+    >
       <div class="p-8 rounded-full bg-muted/20 mb-4">
         <Play class="h-12 w-12 opacity-20" />
       </div>
       <h3 class="text-lg font-medium mb-1">No tabs open</h3>
-      <p class="text-sm">Select an endpoint or click the plus to start</p>
-      <button @click="handleNewRequest"
-        class="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-        New Request
-      </button>
+      <p class="text-sm max-w-xs text-balance mb-6">
+        Select an endpoint from the sidebar or choose an action below to get
+        started.
+      </p>
+
+      <div class="flex items-center gap-3">
+        <button
+          @click="openServiceDialog"
+          class="px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/80 transition-colors border shadow-sm"
+        >
+          New Service
+        </button>
+        <button
+          @click="handleNewRequest"
+          class="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          New Endpoint
+        </button>
+      </div>
     </div>
   </div>
 </template>
