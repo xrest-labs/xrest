@@ -2,16 +2,16 @@
 import MainLayout from "@/layouts/MainLayout.vue";
 import { useSettingsStore } from "@/stores/settings";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { History, Key, Layers, Settings } from "lucide-vue-next";
 import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { History, Layers, LayoutGrid, Settings, Key } from "lucide-vue-next";
 
 const settingsStore = useSettingsStore();
 const route = useRoute();
 
 const navItems = [
   { title: "Services", url: "/services", icon: Layers },
-  { title: "Collections", url: "/collections", icon: LayoutGrid },
+  // { title: "Collections", url: "/collections", icon: LayoutGrid },
   { title: "Secrets", url: "/secrets", icon: Key },
   { title: "History", url: "/history", icon: History },
   { title: "Settings", url: "/settings", icon: Settings },
