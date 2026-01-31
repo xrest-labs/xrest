@@ -1,6 +1,6 @@
 use crate::domains::auth::AuthConfig;
-use crate::domains::service::service::{ServiceDomain, ServiceFile};
-use crate::domains::settings::{SettingsDomain, UserSettings};
+use crate::domains::service::service::ServiceDomain;
+use crate::domains::settings::SettingsDomain;
 use crate::io::MockFileSystem;
 use crate::types::{AuthType, Endpoint, EndpointMetadata, PreflightConfig, Service};
 use mockall::predicate::*;
@@ -101,6 +101,12 @@ fn test_load_service_success() {
         .with(eq(PathBuf::from(service_dir).join("endpoints")))
         .returning(|_| false);
 
+    // Mock endpoints.yaml (doesn't exist)
+    mock_fs
+        .expect_exists()
+        .with(eq(PathBuf::from(service_dir).join("endpoints.yaml")))
+        .returning(|_| false);
+
     let domain = ServiceDomain::new(&mock_fs);
     let result = domain.load_service(service_dir);
     assert!(result.is_ok());
@@ -189,20 +195,20 @@ fn test_save_service_versioning() {
 
     // First save should create version 1
     let domain = ServiceDomain::new(&mock_fs);
-    let result = domain.save_service(&mut service);
+    let result = domain.save_service(&mut service, None);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 1);
     assert_eq!(service.endpoints[0].versions.len(), 1);
 
     // Save again with no changes should NOT create a new version
-    let result = domain.save_service(&mut service);
+    let result = domain.save_service(&mut service, None);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 1);
     assert_eq!(service.endpoints[0].versions.len(), 1);
 
     // Change URL and save should create version 2
     service.endpoints[0].url = "/new-items".to_string();
-    let result = domain.save_service(&mut service);
+    let result = domain.save_service(&mut service, None);
     assert!(result.is_ok());
     assert_eq!(service.endpoints[0].last_version, 2);
     assert_eq!(service.endpoints[0].versions.len(), 2);
