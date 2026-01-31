@@ -21,7 +21,11 @@ export function useServiceSettings() {
             const index = servicesStore.services.findIndex((s) => s.id === tab.serviceId);
             if (index !== -1) {
                 console.info("Saving service", tab.serviceData);
-                await servicesStore.updateService(index, tab.serviceData);
+                await servicesStore.updateService(
+                    index,
+                    tab.serviceData,
+                    `Update settings for service: ${tab.serviceData.name}`
+                );
                 tab.title = tab.serviceData.name;
                 updateTabSnapshot(tab);
                 toast.success("Service updated successfully");

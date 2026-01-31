@@ -178,7 +178,11 @@ impl<'a> ServiceDomain<'a> {
         })
     }
 
-    pub fn save_service(&self, service: &mut Service) -> Result<(), String> {
+    pub fn save_service(
+        &self,
+        service: &mut Service,
+        commit_msg: Option<String>,
+    ) -> Result<(), String> {
         let dir = PathBuf::from(&service.directory);
         if !self.fs.exists(&dir) {
             self.fs.create_dir_all(&dir)?;
@@ -272,10 +276,8 @@ impl<'a> ServiceDomain<'a> {
 
         // Auto-commit if it's a git repo
         if crate::domains::git::is_git_repo(&service.directory) {
-            let _ = crate::domains::git::commit_changes(
-                &service.directory,
-                "Update service configuration",
-            );
+            let msg = commit_msg.unwrap_or_else(|| "Update service configuration".to_string());
+            let _ = crate::domains::git::commit_changes(&service.directory, &msg);
         }
 
         Ok(())

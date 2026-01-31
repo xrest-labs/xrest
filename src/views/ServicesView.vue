@@ -48,7 +48,7 @@ const { allActiveVariables, activeEnvironments, getEnvName } =
 
 const { gitStatuses, handleSyncGit, handleInitGit } = useGitIntegration();
 
-const { tabs, activeTab, addTab, closeTab, initializeTabsFromSavedState } =
+const { tabs, activeTab, addTab, initializeTabsFromSavedState } =
   useTabManager();
 
 const {
@@ -85,7 +85,11 @@ const handleEndpointCreated = async (endpoint: any, serviceId: string) => {
       ...service,
       endpoints: [...service.endpoints, endpoint],
     };
-    await servicesStore.updateService(serviceIndex, updatedService);
+    await servicesStore.updateService(
+      serviceIndex,
+      updatedService,
+      `Create endpoint: ${endpoint.name}`,
+    );
     // Pass serviceId so the new tab gets variables even on first render
     handleSelectEndpoint(endpoint, serviceId);
     isEndpointDialogOpen.value = false;
@@ -217,6 +221,7 @@ const handleSaveRequest = async (payload: {
     await servicesStore.updateService(
       payload.serviceIndex,
       payload.updatedItem,
+      `Update endpoint: ${payload.tab.title}`
     );
 
     // Sync versions for tab

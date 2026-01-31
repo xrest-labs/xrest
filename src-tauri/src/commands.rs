@@ -52,13 +52,17 @@ pub fn get_services(app: AppHandle) -> Result<Vec<Service>, String> {
 }
 
 #[tauri::command]
-pub fn save_services(app: AppHandle, mut services: Vec<Service>) -> Result<Vec<Service>, String> {
+pub fn save_services(
+    app: AppHandle,
+    mut services: Vec<Service>,
+    commit_message: Option<String>,
+) -> Result<Vec<Service>, String> {
     let config_service = ConfigService::new(&RealFileSystem);
     let mut settings = config_service.load_settings(&app)?;
     let mut stubs = Vec::new();
 
     for service in &mut services {
-        config_service.save_service(service)?;
+        config_service.save_service(service, commit_message.clone())?;
         stubs.push(crate::types::ServiceStub {
             id: service.id.clone(),
             name: service.name.clone(),
@@ -187,8 +191,8 @@ pub fn import_service(app: AppHandle, directory: String) -> Result<Service, Stri
         directory: directory.clone(),
     });
 
-    config_service.save_settings(&app, &settings)?;
-    config_service.save_service(&mut service)?;
+    let service_name = service.name.clone();
+    config_service.save_service(&mut service, Some(format!("Import service: {}", service_name)))?;
 
     Ok(service)
 }
@@ -208,6 +212,21 @@ pub fn git_init(
     remote_url: Option<String>,
 ) -> Result<(), String> {
     crate::domains::git::init_git(&directory, remote_url)
+}
+
+#[tauri::command]
+pub fn git_pull(_app: AppHandle, directory: String) -> Result<(), String> {
+    crate::domains::git::pull_changes(&directory)
+}
+
+#[tauri::command]
+pub fn git_push(_app: AppHandle, directory: String) -> Result<(), String> {
+    crate::domains::git::push_changes(&directory)
+}
+
+#[tauri::command]
+pub fn git_commit(_app: AppHandle, directory: String, message: String) -> Result<(), String> {
+    crate::domains::git::commit_changes(&directory, &message)
 }
 
 #[tauri::command]
@@ -328,7 +347,8 @@ pub async fn import_swagger(
     };
 
     let config_service = ConfigService::new(&RealFileSystem);
-    config_service.save_service(&mut service)?;
+    let service_name = service.name.clone();
+    config_service.save_service(&mut service, Some(format!("Import service from Swagger: {}", service_name)))?;
 
     let mut settings = config_service.load_settings(&app)?;
     settings.services.push(crate::types::ServiceStub {
@@ -365,8 +385,9 @@ pub async fn import_curl(
         service.auth_type.as_ref().map(|at| at.to_string()),
     )?;
 
+    let endpoint_name = endpoint.name.clone();
     service.endpoints.push(endpoint);
-    config_service.save_service(&mut service)?;
+    config_service.save_service(&mut service, Some(format!("Import endpoint from cURL: {}", endpoint_name)))?;
 
     Ok(service)
 }

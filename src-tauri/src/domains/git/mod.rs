@@ -119,11 +119,8 @@ pub fn commit_changes(directory: &str, message: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn sync_git(directory: &str) -> Result<(), String> {
+pub fn pull_changes(directory: &str) -> Result<(), String> {
     let repo = Repository::open(directory).map_err(|e| e.to_string())?;
-
-    // Commit any local changes first
-    let _ = commit_changes(directory, "Sync point: auto-committing local changes");
 
     // Pull (Fetch + Merge)
     let mut remote = repo.find_remote("origin").map_err(|e| e.to_string())?;
@@ -168,14 +165,30 @@ pub fn sync_git(directory: &str) -> Result<(), String> {
         commit_changes(directory, &msg)?;
     }
 
-    // Push
+    Ok(())
+}
+
+pub fn push_changes(directory: &str) -> Result<(), String> {
+    let repo = Repository::open(directory).map_err(|e| e.to_string())?;
+    let mut remote = repo.find_remote("origin").map_err(|e| e.to_string())?;
     let mut push_options = PushOptions::new();
+
     remote
         .push(
             &["refs/heads/main:refs/heads/main"],
             Some(&mut push_options),
         )
         .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub fn sync_git(directory: &str) -> Result<(), String> {
+    // Commit any local changes first
+    let _ = commit_changes(directory, "Sync point: auto-committing local changes");
+
+    pull_changes(directory)?;
+    push_changes(directory)?;
 
     Ok(())
 }

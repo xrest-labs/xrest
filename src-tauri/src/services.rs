@@ -33,9 +33,13 @@ impl<'a> ConfigService<'a> {
         domain.load_service(directory)
     }
 
-    pub fn save_service(&self, service: &mut Service) -> Result<(), String> {
+    pub fn save_service(
+        &self,
+        service: &mut Service,
+        commit_msg: Option<String>,
+    ) -> Result<(), String> {
         let domain = crate::domains::service::service::ServiceDomain::new(self.fs);
-        domain.save_service(service)
+        domain.save_service(service, commit_msg)
     }
 
     pub fn load_collections<R: Runtime>(&self, app: &AppHandle<R>) -> Result<Vec<Service>, String> {

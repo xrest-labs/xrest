@@ -43,6 +43,7 @@ import {
   Trash2,
   Unlock
 } from "lucide-vue-next";
+import { useGitIntegration } from "@/composables/useGitIntegration";
 import { useServiceSettings } from "@/composables/useServiceSettings";
 import { computed, onMounted } from "vue";
 import Switch from "./ui/switch/Switch.vue";
@@ -61,10 +62,20 @@ const props = defineProps<{
 const tab = computed(() => props.tab);
 const gitStatus = computed(() => props.gitStatus);
 const secretsStore = useSecretsStore();
-const { saveSettings, deleteItem, reloadAll, syncGit, initGit } = useServiceSettings();
+const {
+  fetchGitStatus,
+  handleCommitGit,
+  handlePullGit,
+  handlePushGit,
+} = useGitIntegration();
+const { saveSettings, deleteItem, reloadAll, initGit } =
+  useServiceSettings();
 
-onMounted(() => {
+onMounted(async () => {
   secretsStore.fetchSecrets();
+  if (props.tab.serviceData.directory) {
+    await fetchGitStatus(props.tab.serviceId, props.tab.serviceData.directory);
+  }
 });
 
 const getVariable = (env: EnvironmentConfig, varName: string) => {
@@ -72,6 +83,12 @@ const getVariable = (env: EnvironmentConfig, varName: string) => {
   return env.variables.find((v: Variable) => v.name === varName);
 };
 
+const handleGitCommit = async () => {
+  const message = prompt("Enter commit message", "Update service configuration");
+  if (message) {
+    await handleCommitGit(props.tab.serviceId, props.tab.serviceData.directory, message);
+  }
+};
 </script>
 
 <template>
@@ -99,7 +116,7 @@ const getVariable = (env: EnvironmentConfig, varName: string) => {
           @click="reloadAll()">
           <RefreshCw class="h-3.5 w-3.5" /> Reload
         </Button>
-        <Button variant="destructive" size="sm" class="h-8 gap-2" @click="deleteItem(tab.serviceId, !!tab.serviceData.directory)">
+        <Button variant="destructive" size="sm" class="h-8 gap-2" @click="deleteItem(tab.serviceId)">
           <Trash2 class="h-3.5 w-3.5" />
           {{
             tab.serviceData.directory ? "Delete Service" : "Delete Collection"
@@ -174,31 +191,53 @@ const getVariable = (env: EnvironmentConfig, varName: string) => {
               UNTRACKED
             </div>
           </div>
-          <div v-if="gitStatus.isGit" class="space-y-3">
-            <div class="flex items-center justify-between border-b border-dashed pb-2">
-              <span class="text-muted-foreground">Branch</span>
-              <span class="font-bold">{{ gitStatus.branch || "main" }}</span>
-            </div>
-            <div class="flex items-center justify-between border-b border-dashed pb-2">
-              <span class="text-muted-foreground">Dirty Files</span>
-              <span :class="[
-                'font-bold',
-                gitStatus.hasUncommittedChanges
-                  ? 'text-orange-500'
-                  : 'text-green-600',
-              ]">
-                {{
+          <div v-if="gitStatus.isGit" class="space-y-4">
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center justify-between border-b border-dashed pb-2">
+                <span class="text-muted-foreground">Branch</span>
+                <span class="font-bold">{{ gitStatus.branch || "main" }}</span>
+              </div>
+              <div class="flex items-center justify-between border-b border-dashed pb-2">
+                <span class="text-muted-foreground">Remote</span>
+                <span class="font-mono text-[10px] truncate max-w-[250px]" :title="gitStatus.remoteUrl">
+                  {{ gitStatus.remoteUrl || "No remote configured" }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between border-b border-dashed pb-2">
+                <span class="text-muted-foreground">Stage</span>
+                <span :class="[
+                  'font-bold',
                   gitStatus.hasUncommittedChanges
-                    ? "Changes Detected"
-                    : "Clean"
-                }}
-              </span>
+                    ? 'text-orange-500'
+                    : 'text-green-600',
+                ]">
+                  {{
+                    gitStatus.hasUncommittedChanges
+                      ? "Changes Detected"
+                      : "Clean"
+                  }}
+                </span>
+              </div>
             </div>
-            <Button variant="outline" size="sm" class="w-full h-8 gap-2 mt-2" @click="
-              syncGit(tab.serviceId, tab.serviceData.directory)
-              ">
-              <RefreshCw class="h-3 w-3" /> Sync with Remote
-            </Button>
+
+            <!-- Git Action Buttons -->
+            <div class="grid grid-cols-3 gap-2 mt-2">
+              <Button variant="outline" size="sm" class="h-8 gap-2" 
+                :disabled="!gitStatus.hasUncommittedChanges"
+                @click="handleGitCommit">
+                <Plus class="h-3 w-3" /> Commit
+              </Button>
+              <Button variant="outline" size="sm" class="h-8 gap-2" 
+                :disabled="!gitStatus.remoteUrl"
+                @click="handlePullGit(tab.serviceId, tab.serviceData.directory)">
+                <RefreshCw class="h-3 w-3" /> Pull
+              </Button>
+              <Button variant="outline" size="sm" class="h-8 gap-2" 
+                :disabled="!gitStatus.remoteUrl"
+                @click="handlePushGit(tab.serviceId, tab.serviceData.directory)">
+                <Save class="h-3 w-3" /> Push
+              </Button>
+            </div>
           </div>
           <div v-else class="p-3 bg-muted/20 rounded border border-dashed text-center space-y-2">
             <p class="text-muted-foreground">

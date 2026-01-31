@@ -10,13 +10,14 @@
 import { ref } from 'vue'
 import { useServicesStore } from '@/stores/services'
 
+const gitStatuses = ref<Record<string, any>>({})
+
 /**
  * Hook to manage git integration for services
  * @returns Object with git status and operation functions
  */
 export const useGitIntegration = () => {
   const servicesStore = useServicesStore()
-  const gitStatuses = ref<Record<string, any>>({})
 
   /**
    * Fetch git status for a service directory
@@ -51,10 +52,44 @@ export const useGitIntegration = () => {
     await fetchGitStatus(serviceId, directory)
   }
 
+  /**
+   * Pull git repository from remote
+   * @param serviceId - Service ID
+   * @param directory - Directory path to pull
+   */
+  const handlePullGit = async (serviceId: string, directory: string) => {
+    await servicesStore.pullGit(directory)
+    await fetchGitStatus(serviceId, directory)
+  }
+
+  /**
+   * Push git repository to remote
+   * @param serviceId - Service ID
+   * @param directory - Directory path to push
+   */
+  const handlePushGit = async (serviceId: string, directory: string) => {
+    await servicesStore.pushGit(directory)
+    await fetchGitStatus(serviceId, directory)
+  }
+
+  /**
+   * Commit changes to git repository
+   * @param serviceId - Service ID
+   * @param directory - Directory path to commit
+   * @param message - Commit message
+   */
+  const handleCommitGit = async (serviceId: string, directory: string, message: string) => {
+    await servicesStore.commitGit(directory, message)
+    await fetchGitStatus(serviceId, directory)
+  }
+
   return {
     gitStatuses,
     fetchGitStatus,
     handleSyncGit,
-    handleInitGit
+    handleInitGit,
+    handlePullGit,
+    handlePushGit,
+    handleCommitGit
   }
 }

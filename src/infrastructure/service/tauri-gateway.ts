@@ -7,8 +7,8 @@ export class TauriServiceGateway implements IServiceGateway {
         return invoke<Service[]>('get_services')
     }
 
-    async saveServices(services: Service[]): Promise<Service[]> {
-        return invoke<Service[]>('save_services', { services })
+    async saveServices(services: Service[], commitMessage?: string): Promise<Service[]> {
+        return invoke<Service[]>('save_services', { services, commitMessage })
     }
 
     async getGitStatus(directory: string): Promise<any> {
@@ -21,6 +21,18 @@ export class TauriServiceGateway implements IServiceGateway {
 
     async syncGit(directory: string): Promise<void> {
         return invoke('git_sync', { directory })
+    }
+
+    async pullGit(directory: string): Promise<void> {
+        return invoke('git_pull', { directory })
+    }
+
+    async pushGit(directory: string): Promise<void> {
+        return invoke('git_push', { directory })
+    }
+
+    async commitGit(directory: string, message: string): Promise<void> {
+        return invoke('git_commit', { directory, message })
     }
 
     async importService(directory: string): Promise<Service> {

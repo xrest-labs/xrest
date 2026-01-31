@@ -24,9 +24,9 @@ export const useServicesStore = defineStore('services', () => {
         }
     }
 
-    const saveServices = async () => {
+    const saveServices = async (commitMessage?: string) => {
         try {
-            const updated = await serviceManager.saveServices(services.value)
+            const updated = await serviceManager.saveServices(services.value, commitMessage)
             if (updated) {
                 services.value = updated
             }
@@ -35,9 +35,9 @@ export const useServicesStore = defineStore('services', () => {
         }
     }
 
-    const addService = async (service: Service) => {
+    const addService = async (service: Service, commitMessage?: string) => {
         try {
-            const updated = await serviceManager.addService(services.value, service)
+            const updated = await serviceManager.addService(services.value, service, commitMessage)
             services.value = updated
         } catch (error) {
             console.error('Failed to add service:', error)
@@ -45,9 +45,9 @@ export const useServicesStore = defineStore('services', () => {
         }
     }
 
-    const updateService = async (index: number, service: Service) => {
+    const updateService = async (index: number, service: Service, commitMessage?: string) => {
         try {
-            const updated = await serviceManager.updateService(services.value, index, service)
+            const updated = await serviceManager.updateService(services.value, index, service, commitMessage)
             services.value = updated
         } catch (error) {
             console.error('Failed to update service:', error)
@@ -104,6 +104,39 @@ export const useServicesStore = defineStore('services', () => {
         }
     }
 
+    const pullGit = async (directory: string) => {
+        try {
+            await serviceManager.pullGit(directory)
+            toast.success('Git pull completed')
+        } catch (error) {
+            toast.error('Failed to pull from remote', {
+                description: String(error)
+            })
+        }
+    }
+
+    const pushGit = async (directory: string) => {
+        try {
+            await serviceManager.pushGit(directory)
+            toast.success('Git push completed')
+        } catch (error) {
+            toast.error('Failed to push to remote', {
+                description: String(error)
+            })
+        }
+    }
+
+    const commitGit = async (directory: string, message: string) => {
+        try {
+            await serviceManager.commitGit(directory, message)
+            toast.success('Changes committed')
+        } catch (error) {
+            toast.error('Failed to commit changes', {
+                description: String(error)
+            })
+        }
+    }
+
     const importService = async (directory: string): Promise<Service | null> => {
         try {
             const service = await serviceManager.importService(directory)
@@ -151,6 +184,9 @@ export const useServicesStore = defineStore('services', () => {
         getGitStatus,
         initGit,
         syncGit,
+        pullGit,
+        pushGit,
+        commitGit,
         importService,
         importCurl
     }

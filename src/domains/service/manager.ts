@@ -8,19 +8,19 @@ export class ServiceManager {
         return this.gateway.loadServices()
     }
 
-    async saveServices(services: Service[]): Promise<Service[]> {
-        return this.gateway.saveServices(services)
+    async saveServices(services: Service[], commitMessage?: string): Promise<Service[]> {
+        return this.gateway.saveServices(services, commitMessage)
     }
 
-    async addService(services: Service[], service: Service): Promise<Service[]> {
+    async addService(services: Service[], service: Service, commitMessage?: string): Promise<Service[]> {
         const newServices = [...services, service]
-        return this.saveServices(newServices)
+        return this.saveServices(newServices, commitMessage)
     }
 
-    async updateService(services: Service[], index: number, service: Service): Promise<Service[]> {
+    async updateService(services: Service[], index: number, service: Service, commitMessage?: string): Promise<Service[]> {
         const newServices = [...services]
         newServices[index] = service
-        return this.saveServices(newServices)
+        return this.saveServices(newServices, commitMessage)
     }
 
     async deleteService(services: Service[], index: number): Promise<Service[]> {
@@ -39,6 +39,18 @@ export class ServiceManager {
 
     async syncGit(directory: string): Promise<void> {
         return this.gateway.syncGit(directory)
+    }
+
+    async pullGit(directory: string): Promise<void> {
+        return this.gateway.pullGit(directory)
+    }
+
+    async pushGit(directory: string): Promise<void> {
+        return this.gateway.pushGit(directory)
+    }
+
+    async commitGit(directory: string, message: string): Promise<void> {
+        return this.gateway.commitGit(directory, message)
     }
 
     async importService(directory: string): Promise<Service> {

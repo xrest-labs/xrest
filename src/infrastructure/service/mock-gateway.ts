@@ -16,7 +16,7 @@ export class MockServiceGateway implements IServiceGateway {
         return [...this.services]
     }
 
-    async saveServices(services: Service[]): Promise<Service[]> {
+    async saveServices(services: Service[], _commitMessage?: string): Promise<Service[]> {
         this.services = services
         localStorage.setItem('mock_services', JSON.stringify(services))
         return services
@@ -37,6 +37,18 @@ export class MockServiceGateway implements IServiceGateway {
 
     async syncGit(directory: string): Promise<void> {
         console.log('Mock sync git:', directory)
+    }
+
+    async pullGit(directory: string): Promise<void> {
+        console.log('Mock pull git:', directory)
+    }
+
+    async pushGit(directory: string): Promise<void> {
+        console.log('Mock push git:', directory)
+    }
+
+    async commitGit(directory: string, message: string): Promise<void> {
+        console.log('Mock commit git:', directory, message)
     }
 
     async importService(directory: string): Promise<Service> {
