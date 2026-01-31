@@ -139,12 +139,6 @@ const isEnvUnsafe = (service: Service, envName: string) => {
           </PopoverContent>
         </Popover>
 
-        <button @click="emits('import-curl', service)"
-          class="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-          title="Import from cURL">
-          <Terminal class="h-3.5 w-3.5" />
-        </button>
-
         <button @click="emits('select-service-settings', service)"
           class="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
           title="Service Settings">

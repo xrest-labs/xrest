@@ -39,6 +39,8 @@ const {
 
 const searchQuery = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
+const isImportPopoverOpen = ref(false);
+const isAddPopoverOpen = ref(false);
 
 // Handle global keydown for search shortcut
 const handleGlobalKeydown = (e: KeyboardEvent) => {
@@ -132,7 +134,7 @@ const handleImportService = async () => {
       </div>
 
       <div class="flex items-center gap-1">
-        <Popover>
+        <Popover v-model:open="isImportPopoverOpen">
           <PopoverTrigger as-child>
             <button class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground"
               title="Import options">
@@ -141,26 +143,23 @@ const handleImportService = async () => {
           </PopoverTrigger>
           <PopoverContent class="w-48 p-1" align="start">
             <div class="flex flex-col">
-              <button @click="handleImportService"
+              <button @click="isImportPopoverOpen = false; handleImportService()"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Folder class="h-3.5 w-3.5 text-blue-500" />
                 <span>From Directory</span>
               </button>
-              <button @click="isSwaggerDialogOpen = true"
+              <button @click="isImportPopoverOpen = false; isSwaggerDialogOpen = true"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Globe class="h-3.5 w-3.5 text-orange-500" />
                 <span>Swagger / OpenAPI</span>
               </button>
-              <button @click="isCurlDialogOpen = true"
+              <button @click="isImportPopoverOpen = false; isCurlDialogOpen = true"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Terminal class="h-3.5 w-3.5 text-green-500" />
                 <span>cURL Command</span>
               </button>
             </div>
           </PopoverContent>
         </Popover>
 
-        <Popover>
+        <Popover v-model:open="isAddPopoverOpen">
           <PopoverTrigger as-child>
             <button class="p-1.5 hover:bg-muted rounded-md transition-colors text-muted-foreground">
               <Plus class="h-4 w-4" />
@@ -168,25 +167,21 @@ const handleImportService = async () => {
           </PopoverTrigger>
           <PopoverContent class="w-48 p-1" align="end">
             <div class="flex flex-col">
-              <button @click="isServiceDialogOpen = true"
+              <button @click="isAddPopoverOpen = false; isServiceDialogOpen = true"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Layers class="h-3.5 w-3.5 text-primary" />
                 <span>Add New Service</span>
               </button>
-              <button @click="handleImportService"
+              <button @click="isAddPopoverOpen = false; isEndpointDialogOpen = true"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Download class="h-3.5 w-3.5 text-blue-500" />
+                <span>Add New Endpoint</span>
+              </button>
+              <button @click="isAddPopoverOpen = false; handleImportService()"
+                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
                 <span>Import from Directory</span>
               </button>
-              <button @click="isSwaggerDialogOpen = true"
+              <button @click="isAddPopoverOpen = false; isSwaggerDialogOpen = true"
                 class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <Globe class="h-3.5 w-3.5 text-orange-500" />
                 <span>Import from Swagger</span>
-              </button>
-              <button @click="isEndpointDialogOpen = true"
-                class="flex items-center gap-2 px-2 py-2 hover:bg-muted rounded-sm text-left transition-colors">
-                <PlusCircle class="h-3.5 w-3.5 text-green-500" />
-                <span>Add New Endpoint</span>
               </button>
             </div>
           </PopoverContent>
