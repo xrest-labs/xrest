@@ -1,22 +1,8 @@
 <script setup lang="ts">
-import {
-  Save,
-  Trash2,
-  GitBranch,
-  CheckCircle2,
-  RefreshCw,
-  Plus,
-  Settings2,
-  Globe,
-  AlertCircle,
-  Lock,
-  Unlock,
-  Key,
-  X,
-  Check,
-  ShieldCheck,
-} from "lucide-vue-next";
 import RequestAuth from "@/components/RequestAuth.vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -30,47 +16,62 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
-  getUniqueVariableNames,
-  syncVariableValue,
-  syncVariableName,
-  removeVariable,
   addVariableToAll,
+  getUniqueVariableNames,
+  removeVariable,
+  syncVariableName,
   syncVariableSecret,
+  syncVariableValue,
   type Variable,
+  type EnvironmentConfig,
 } from "@/lib/environment-utils";
 import { useSecretsStore } from "@/stores/secrets";
-import { onMounted, computed } from "vue";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  GitBranch,
+  Globe,
+  Key,
+  Lock,
+  Plus,
+  RefreshCw,
+  Save,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  Unlock
+} from "lucide-vue-next";
+import { useServiceSettings } from "@/composables/useServiceSettings";
+import { computed, onMounted } from "vue";
+import Switch from "./ui/switch/Switch.vue";
 
 const props = defineProps<{
-  tab: any;
+  tab: {
+    id: string;
+    type: string;
+    serviceId: string;
+    serviceData: any; // We could use Service type but it's dynamic
+    title: string;
+  };
   gitStatus?: any;
 }>();
 
 const tab = computed(() => props.tab);
 const gitStatus = computed(() => props.gitStatus);
 const secretsStore = useSecretsStore();
+const { saveSettings, deleteItem, reloadAll, syncGit, initGit } = useServiceSettings();
 
 onMounted(() => {
   secretsStore.fetchSecrets();
 });
 
-const getVariable = (env: any, varName: string) => {
+const getVariable = (env: EnvironmentConfig, varName: string) => {
   if (!env.variables) return null;
   return env.variables.find((v: Variable) => v.name === varName);
 };
 
-const emit = defineEmits<{
-  (e: "save", tab: any): void;
-  (e: "delete", serviceId: string, tabId: string): void;
-  (e: "reload", serviceId: string): void;
-  (e: "syncGit", serviceId: string, directory: string): void;
-  (e: "initGit", serviceId: string, directory: string, gitUrl?: string): void;
-}>();
 </script>
 
 <template>
@@ -95,16 +96,16 @@ const emit = defineEmits<{
       </div>
       <div class="flex items-center gap-2">
         <Button v-if="tab.serviceData.directory" variant="outline" size="sm" class="h-8 gap-2"
-          @click="emit('reload', tab.serviceId)">
+          @click="reloadAll()">
           <RefreshCw class="h-3.5 w-3.5" /> Reload
         </Button>
-        <Button variant="destructive" size="sm" class="h-8 gap-2" @click="emit('delete', tab.serviceId, tab.id)">
+        <Button variant="destructive" size="sm" class="h-8 gap-2" @click="deleteItem(tab.serviceId, !!tab.serviceData.directory)">
           <Trash2 class="h-3.5 w-3.5" />
           {{
             tab.serviceData.directory ? "Delete Service" : "Delete Collection"
           }}
         </Button>
-        <Button variant="default" size="sm" class="h-8 gap-2 px-4" @click="emit('save', tab)">
+        <Button variant="default" size="sm" class="h-8 gap-2 px-4" @click="saveSettings(tab)">
           <Save class="h-3.5 w-3.5" /> Save Changes
         </Button>
       </div>
@@ -194,7 +195,7 @@ const emit = defineEmits<{
               </span>
             </div>
             <Button variant="outline" size="sm" class="w-full h-8 gap-2 mt-2" @click="
-              emit('syncGit', tab.serviceId, tab.serviceData.directory)
+              syncGit(tab.serviceId, tab.serviceData.directory)
               ">
               <RefreshCw class="h-3 w-3" /> Sync with Remote
             </Button>
@@ -205,7 +206,7 @@ const emit = defineEmits<{
               for automatic change tracking.
             </p>
             <Button variant="outline" size="sm" class="h-7 gap-1.5" @click="
-              emit('initGit', tab.serviceId, tab.serviceData.directory)
+              initGit(tab.serviceId, tab.serviceData.directory)
               ">
               <GitBranch class="h-3 w-3" /> Initialize Git
             </Button>
@@ -246,8 +247,9 @@ const emit = defineEmits<{
                     <span class="font-bold">{{ env.name }}</span>
                   </div>
                   <div class="flex items-center gap-1.5 mt-1">
-                    <Switch v-model:checked="env.isUnsafe" class="scale-50" />
-                    <span class="uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Prod Warn</span>
+                    <Switch v-if="env.isUnsafe" v-model="env.isUnsafe" class="bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                    <Switch v-else v-model="env.isUnsafe" class="bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                    <span class="uppercase tracking-tighter font-bold text-muted-foreground opacity-70">Unsafe</span>
                   </div>
                 </div>
               </TableHead>

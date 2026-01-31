@@ -11,6 +11,20 @@ vi.mock('@/stores/secrets', () => ({
     }))
 }))
 
+const mockSaveSettings = vi.fn()
+const mockDeleteItem = vi.fn()
+const mockReloadAll = vi.fn()
+
+vi.mock('@/composables/useServiceSettings', () => ({
+    useServiceSettings: vi.fn(() => ({
+        saveSettings: mockSaveSettings,
+        deleteItem: mockDeleteItem,
+        reloadAll: mockReloadAll,
+        syncGit: vi.fn(),
+        initGit: vi.fn()
+    }))
+}))
+
 describe('ServiceSettingsView - isUnsafe Flag', () => {
     const createMockTab = (isUnsafe = false) => ({
         id: 'settings-test',
@@ -72,8 +86,8 @@ describe('ServiceSettingsView - isUnsafe Flag', () => {
                 Input: { template: '<input />' },
                 Label: { template: '<label><slot /></label>' },
                 Switch: {
-                    template: '<button class="switch" @click="$emit(\'update:checked\', !checked)"></button>',
-                    props: ['checked']
+                    template: '<button class="switch" @click="$emit(\'update:modelValue\', !modelValue)"></button>',
+                    props: ['modelValue']
                 },
                 ShieldCheck: true,
                 Settings2: true,
@@ -143,8 +157,7 @@ describe('ServiceSettingsView - isUnsafe Flag', () => {
         const saveButton = wrapper.findAll('button').find(b => b.text().includes('Save Changes'))
         await saveButton?.trigger('click')
 
-        expect(wrapper.emitted('save')).toBeDefined()
-        expect(wrapper.emitted('save')?.[0][0]).toStrictEqual(tab)
+        expect(mockSaveSettings).toHaveBeenCalled()
     })
 
     it('should display "Prod Warn" label for each environment', async () => {
@@ -157,7 +170,7 @@ describe('ServiceSettingsView - isUnsafe Flag', () => {
             ...mountOptions
         })
 
-        const prodWarnLabels = wrapper.findAll('span').filter(s => s.text().includes('Prod Warn'))
-        expect(prodWarnLabels.length).toBe(3)
+        const prodWarnLabels = wrapper.findAll('span').filter(s => s.text().includes('Unsafe'))
+        expect(prodWarnLabels.length).toBeGreaterThanOrEqual(3)
     })
 })

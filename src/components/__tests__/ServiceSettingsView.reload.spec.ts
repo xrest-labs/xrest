@@ -11,6 +11,18 @@ vi.mock('@/stores/secrets', () => ({
     }))
 }))
 
+const mockReloadAll = vi.fn()
+
+vi.mock('@/composables/useServiceSettings', () => ({
+    useServiceSettings: vi.fn(() => ({
+        saveSettings: vi.fn(),
+        deleteItem: vi.fn(),
+        reloadAll: mockReloadAll,
+        syncGit: vi.fn(),
+        initGit: vi.fn()
+    }))
+}))
+
 describe('ServiceSettingsView - Reload Button', () => {
     const createMockServiceTab = () => ({
         id: 'settings-test',
@@ -123,7 +135,6 @@ describe('ServiceSettingsView - Reload Button', () => {
         const reloadButton = wrapper.findAll('button').find(b => b.text().includes('Reload'))
         await reloadButton?.trigger('click')
 
-        expect(wrapper.emitted('reload')).toBeDefined()
-        expect(wrapper.emitted('reload')?.[0][0]).toBe('service-1')
+        expect(mockReloadAll).toHaveBeenCalled()
     })
 })

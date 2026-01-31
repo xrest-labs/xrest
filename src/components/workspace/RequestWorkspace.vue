@@ -21,6 +21,7 @@ import { useTabManager } from "@/composables/useTabManager";
 import { useEnvironmentVariables } from "@/composables/useEnvironmentVariables";
 import { useRequestExecution } from "@/composables/useRequestExecution";
 import { useDialogState } from "@/composables/useDialogState";
+import { useServiceSettings } from "@/composables/useServiceSettings";
 import { toast } from "vue-sonner";
 
 const props = defineProps<{
@@ -39,12 +40,6 @@ const emit = defineEmits<{
     e: "save-request",
     payload: { serviceIndex: number; updatedItem: any; tab: any },
   ): void;
-  (e: "update-item", payload: { index: number; data: any; tab: any }): void;
-  (
-    e: "delete-item",
-    payload: { index: number; id: string; tabId: string },
-  ): void;
-  (e: "reload-items"): void;
 }>();
 
 // Use tab manager
@@ -74,6 +69,8 @@ const { isUnsafeDialogOpen } = useDialogState();
 const { isSending, handleSendRequest } =
   useRequestExecution(isUnsafeDialogOpen);
 
+const { saveSettings } = useServiceSettings();
+
 const handleNewRequest = () => {
   if (props.onNewRequest) {
     props.onNewRequest();
@@ -88,7 +85,7 @@ const handleGlobalKeyDown = (e: KeyboardEvent) => {
     const tab = tabs.value.find((t: any) => t.id === activeTab.value);
     if (tab) {
       if (tab.type === "settings") {
-        handleUpdateSettings(tab);
+        saveSettings(tab);
       } else {
         handleSaveRequest(tab);
       }
@@ -184,18 +181,7 @@ const handleSaveRequest = async (tab: any) => {
   updateTabSnapshot(tab);
 };
 
-const handleUpdateSettings = async (tab: any) => {
-  const itemIndex = props.items.findIndex((i) => i.id === tab.serviceId);
-  if (itemIndex === -1) return;
 
-  emit("update-item", {
-    index: itemIndex,
-    data: tab.serviceData,
-    tab,
-  });
-
-  updateTabSnapshot(tab);
-};
 
 const handleSelectServiceSettings = (service: any) => {
   const tabId = `settings-${service.id}`;
@@ -423,10 +409,7 @@ const handleUpdateBody = (content: string, tab: any) => {
 
           <!-- Settings View -->
           <div v-else-if="tab.type === 'settings'" class="h-full overflow-auto">
-            <ServiceSettingsView :tab="tab" :git-status="gitStatuses?.[tab.serviceId]" :label="label"
-              @save="handleUpdateSettings(tab)" @sync-git="(dir) => emit('sync-git', tab.serviceId, dir)"
-              @init-git="(dir, url) => emit('init-git', tab.serviceId, dir, url)" @reload="emit('reload-items')"
-              @delete="emit('delete-item', { index: props.items.findIndex(i => i.id === tab.serviceId), id: tab.serviceId, tabId: tab.id })" />
+            <ServiceSettingsView :tab="tab" :git-status="gitStatuses?.[tab.serviceId]" :label="label" />
           </div>
         </TabsContent>
       </div>

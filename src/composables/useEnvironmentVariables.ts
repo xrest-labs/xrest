@@ -36,8 +36,8 @@ export const useEnvironmentVariables = () => {
       if (env) {
         env.variables.forEach(v => {
           if (v.name) {
-            if ((v as any).secretKey) {
-              vars[v.name] = `{{secret.${(v as any).secretKey}}}`
+            if (v.secretKey) {
+              vars[v.name] = `{{secret.${v.secretKey}}}`
             } else {
               vars[v.name] = v.value || ''
             }
@@ -55,8 +55,8 @@ export const useEnvironmentVariables = () => {
       if (env) {
         env.variables.forEach(v => {
           if (v.name) {
-            if ((v as any).secretKey) {
-              vars[v.name] = `{{secret.${(v as any).secretKey}}}`
+            if (v.secretKey) {
+              vars[v.name] = `{{secret.${v.secretKey}}}`
             } else {
               vars[v.name] = v.value || ''
             }

@@ -24,7 +24,12 @@ export type NameValue = {
     value: string;
 }
 
-export type Variable = NameValue;
+export type Variable = {
+    name: string;
+    value: string;
+    enabled?: boolean;
+    secretKey?: string;
+}
 export type Param = NameValue;
 export type Header = NameValue;
 

@@ -65,6 +65,13 @@ vi.mock('vue-sonner', () => ({
     }
 }))
 
+const mockSaveSettings = vi.fn()
+vi.mock('@/composables/useServiceSettings', () => ({
+    useServiceSettings: vi.fn(() => ({
+        saveSettings: mockSaveSettings
+    }))
+}))
+
 describe('RequestWorkspace', () => {
     beforeEach(() => {
         setActivePinia(createPinia())
@@ -200,12 +207,6 @@ describe('RequestWorkspace', () => {
         })
         window.dispatchEvent(event)
 
-        expect(wrapper.emitted('update-item')).toBeTruthy()
-        expect(wrapper.emitted('update-item')![0][0]).toMatchObject({
-            index: 0,
-            data: mockTabs.value[0].serviceData,
-            tab: mockTabs.value[0]
-        })
-        expect(mockUpdateTabSnapshot).toHaveBeenCalledWith(mockTabs.value[0])
+        expect(mockSaveSettings).toHaveBeenCalledWith(mockTabs.value[0])
     })
 })

@@ -237,47 +237,7 @@ const handleSaveRequest = async (payload: {
   }
 };
 
-const handleUpdateItem = async (payload: {
-  index: number;
-  data: any;
-  tab: any;
-}) => {
-  try {
-    await servicesStore.updateService(payload.index, payload.data);
-    payload.tab.title = payload.data.name;
-    toast.success("Service updated");
-  } catch (error) {
-    toast.error("Failed to update service");
-  }
-};
 
-const handleDeleteItem = async (payload: {
-  index: number;
-  id: string;
-  tabId: string;
-}) => {
-  try {
-    const serviceName = servicesStore.services[payload.index].name;
-    await servicesStore.deleteService(payload.index);
-    // useTabManager handles closing usually, but here we explicitly ask for it
-    // Wait, useTabManager is used in Workspace, but closing via prop sync or event?
-    // Workspace emits delete-item, but it called closeTab BEFORE emitting?
-    // In current RequestWorkspace implementation (Step 233), it emits delete-item ONLY. It does NOT call closeTab.
-    // So we must close the tab here.
-    const tabsToClose = tabs.value
-      .filter((t) => t.serviceId === payload.id)
-      .map((t) => t.id);
-    tabsToClose.forEach((tid) => {
-      // We need closeTab exposed from useTabManager
-      const tabIdx = tabs.value.findIndex((t) => t.id === tid);
-      if (tabIdx !== -1) tabs.value.splice(tabIdx, 1);
-    });
-
-    toast.success(`Service "${serviceName}" deleted`);
-  } catch (error) {
-    toast.error("Failed to delete service");
-  }
-};
 </script>
 
 <template>
@@ -296,8 +256,7 @@ const handleDeleteItem = async (payload: {
         <RequestWorkspace :items="servicesStore.services" :git-statuses="gitStatuses" label="Service"
           :on-new-request="openEndpointDialog"
           @sync-git="handleSyncGit" @init-git="handleInitGit" @share-request="handleShareRequest"
-          @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
-          @reload-items="servicesStore.loadServices" />
+          @save-request="handleSaveRequest" />
       </ResizablePanel>
     </ResizablePanelGroup>
 

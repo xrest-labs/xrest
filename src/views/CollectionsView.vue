@@ -321,40 +321,7 @@ const handleSaveRequest = async (payload: {
   }
 };
 
-const handleUpdateItem = async (payload: {
-  index: number;
-  data: any;
-  tab: any;
-}) => {
-  try {
-    await collectionsStore.updateCollection(payload.index, payload.data);
-    payload.tab.title = payload.data.name;
-    toast.success("Collection updated");
-  } catch (error) {
-    toast.error("Failed to update collection");
-  }
-};
 
-const handleDeleteItem = async (payload: {
-  index: number;
-  id: string;
-  tabId: string;
-}) => {
-  try {
-    const name = collectionsStore.collections[payload.index].name;
-    await collectionsStore.deleteCollection(payload.index);
-    const tabsToClose = tabs.value
-      .filter((t) => t.serviceId === payload.id)
-      .map((t) => t.id);
-    tabsToClose.forEach((tid) => {
-      const tabIdx = tabs.value.findIndex((t) => t.id === tid);
-      if (tabIdx !== -1) tabs.value.splice(tabIdx, 1);
-    });
-    toast.success(`Collection "${name}" deleted`);
-  } catch (error) {
-    toast.error("Failed to delete collection");
-  }
-};
 </script>
 
 <template>
@@ -373,8 +340,7 @@ const handleDeleteItem = async (payload: {
         <RequestWorkspace :items="collectionsStore.collections" label="Collection"
           :on-new-request="openCollectionEndpointDialog"
           @share-request="handleShareRequest"
-          @save-request="handleSaveRequest" @update-item="handleUpdateItem" @delete-item="handleDeleteItem"
-          @reload-items="collectionsStore.loadCollections" />
+          @save-request="handleSaveRequest" />
       </ResizablePanel>
     </ResizablePanelGroup>
 
