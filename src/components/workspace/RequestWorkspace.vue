@@ -319,14 +319,11 @@ const handleUpdateBody = (content: string, tab: any) => {
                           @update:content="handleUpdateBody($event, tab)" />
                       </TabsContent>
                       <TabsContent value="history" class="p-0 m-0">
-                        <RequestHistory :versions="tab.versions || []" @restore="(v) => {
-                          tab.method = v.config.method;
-                          tab.url = v.config.url;
-                          tab.params = JSON.parse(JSON.stringify(v.config.params));
-                          tab.headers = JSON.parse(JSON.stringify(v.config.headers));
-                          tab.body.content = v.config.body;
-                          tab.preflight = JSON.parse(JSON.stringify(v.config.preflight));
-                        }" />
+                        <RequestHistory
+                          :tab-id="tab.id"
+                          :service-id="tab.serviceId"
+                          :endpoint-id="tab.endpointId"
+                        />
                       </TabsContent>
                       <TabsContent value="preflight" class="p-0 m-0 overflow-visible">
                         <div class="p-4">

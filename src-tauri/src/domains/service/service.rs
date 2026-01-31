@@ -129,28 +129,37 @@ impl<'a> ServiceDomain<'a> {
         let mut endpoints = Vec::new();
         let endpoints_dir = base_path.join("endpoints");
 
-        // Loop through stubs to preserve order and ensure we check all known endpoints
-        for stub in &service_file.endpoints {
-            let ep_path = endpoints_dir.join(format!("{}.yaml", stub.id));
-            let mut loaded = false;
+        // If we have stubs, use them to load prioritized individual files or fallback to legacy map
+        if !service_file.endpoints.is_empty() {
+            for stub in &service_file.endpoints {
+                let ep_path = endpoints_dir.join(format!("{}.yaml", stub.id));
+                let mut loaded = false;
 
-            // Try loading from individual file first
-            if self.fs.exists(&endpoints_dir) && self.fs.exists(&ep_path) {
-                if let Ok(ep_content) = self.fs.read_to_string(&ep_path) {
-                    if let Ok(endpoint) = serde_yaml::from_str::<Endpoint>(&ep_content) {
-                        endpoints.push(endpoint);
-                        loaded = true;
+                // Try loading from individual file first
+                if self.fs.exists(&endpoints_dir) && self.fs.exists(&ep_path) {
+                    if let Ok(ep_content) = self.fs.read_to_string(&ep_path) {
+                        if let Ok(endpoint) = serde_yaml::from_str::<Endpoint>(&ep_content) {
+                            endpoints.push(endpoint);
+                            loaded = true;
+                        }
+                    }
+                }
+
+                // Fallback to legacy endpoints.yaml if not loaded from file
+                if !loaded {
+                    if let Some(endpoint) = legacy_endpoints.get(&stub.id) {
+                        endpoints.push(endpoint.clone());
+                    } else {
+                        println!("Warning: Failed to load endpoint {}", stub.id);
                     }
                 }
             }
-
-            // Fallback to legacy endpoints.yaml if not loaded from file
-            if !loaded {
-                if let Some(endpoint) = legacy_endpoints.get(&stub.id) {
-                    endpoints.push(endpoint.clone());
-                } else {
-                    println!("Warning: Failed to load endpoint {}", stub.id);
-                }
+        } else {
+            // If no stubs are present, check if we can load all from legacy endpoints.yaml
+            if !legacy_endpoints.is_empty() {
+                endpoints = legacy_endpoints.into_values().collect();
+                // Sort by ID or name to keep it consistent
+                endpoints.sort_by(|a, b| a.name.cmp(&b.name));
             }
         }
 
